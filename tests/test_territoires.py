@@ -53,3 +53,14 @@ def test_eurostat_vers_table():
     donnees["dimension"]["geo"]["category"]["index"] = {"FR": 0, "DE": 1}
     with pytest.raises(ValueError):
         territoires.eurostat_vers_table(donnees)
+
+
+def test_departements_et_vehicules(tmp_path):
+    assert len(territoires.DEPARTEMENTS) == 96
+    chemin = tmp_path / "v.csv"
+    chemin.write_bytes(
+        "CODGEO,LIBGEO,EPCI,LIBEPCI,DATE_ARRETE,NB_VP_RECHARGEABLES_EL,NB_VP_RECHARGEABLES_GAZ,NB_VP\n"
+        "1001,L'ABERGEMENT-CLÉMENCIAT,200069193,CC,2026-08-31,12,0,900\n".encode("latin1")
+    )
+    v = territoires.lire_vehicules(chemin)
+    assert v.row(0) == ("01001", date(2026, 8, 31), 12, 0, 900)
