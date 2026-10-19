@@ -25,11 +25,18 @@ from carburants import enseignes
         ("Station U", None, "Système U"),
         (None, "Intermarché Saint-Jean", "Intermarché"),
         ("Petrovex", None, "Petrovex"),
+        ("Les Mousquetaires", None, "Intermarché"),
+        ("Independent", "Garage Martin", None),
         (None, None, None),
     ],
 )
 def test_normaliser(marque, nom, attendu):
     assert enseignes.normaliser(marque, nom) == attendu
+
+
+def test_total_access():
+    table = pl.DataFrame({"marque": ["Total Access", "TotalEnergies", None, "Total"], "nom": [None, "Total Access Lyon", "Station Total", "Accessoires"]})
+    assert table.select(enseignes.total_access(pl.col("marque"), pl.col("nom"))).to_series().to_list() == [True, True, False, False]
 
 
 def test_elements_vers_table_noeuds_et_ways():

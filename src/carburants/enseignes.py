@@ -39,7 +39,7 @@ RAYON_TERRE_M = 6_371_000
 ENSEIGNES = [
     (r"total|elan\b", "TotalEnergies"),
     (r"leclerc", "E.Leclerc"),
-    (r"intermarche", "Intermarché"),
+    (r"intermarche|mousquetaires", "Intermarché"),
     (r"carrefour", "Carrefour"),
     (r"(super|hyper|station) u\b|u express|systeme u|^u$", "Système U"),
     (r"auchan", "Auchan"),
@@ -54,6 +54,8 @@ ENSEIGNES = [
     (r"\bcora\b", "Cora"),
 ]
 GRANDES_SURFACES = {"E.Leclerc", "Intermarché", "Carrefour", "Système U", "Auchan", "Casino", "Netto", "Cora"}
+# Marques OSM qui disent qu'une station n'a pas d'enseigne
+SANS_ENSEIGNE = {"independent", "independant", "independante", "sans enseigne", "aucune", "none"}
 
 
 # Préfixes génériques retirés du nom avant d'y chercher une enseigne
@@ -73,6 +75,8 @@ def normaliser(marque: str | None, nom: str | None = None) -> str | None:
     """
     if marque and marque.strip():
         bas = _simplifier(marque)
+        if bas in SANS_ENSEIGNE:
+            return None
         for motif, enseigne in ENSEIGNES:
             if re.search(motif, bas):
                 return enseigne
@@ -83,6 +87,15 @@ def normaliser(marque: str | None, nom: str | None = None) -> str | None:
             if re.match(motif, bas):
                 return enseigne
     return None
+
+
+def total_access(marque: pl.Expr, nom: pl.Expr) -> pl.Expr:
+    """Vrai pour les stations TotalEnergies Access, format à bas prix distinct des stations Total classiques.
+
+    À n'appliquer qu'aux stations dont l'enseigne normalisée est TotalEnergies.
+    """
+    texte = pl.concat_str([marque.fill_null(""), nom.fill_null("")], separator=" ").str.to_lowercase()
+    return texte.str.contains(r"\baccess\b")
 
 
 def _requete_overpass(requete: str) -> list[dict]:
