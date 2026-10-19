@@ -1,0 +1,63 @@
+name: Collecte quotidienne
+
+# Chaque matin : photo des prix de toutes les stations ; chaque lundi : fichier des bornes IRVE.
+# Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      irve:
+        description: "Collecter aussi les bornes IRVE"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collecte
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+
+      - name: Préparer la branche data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin data; then
+            git fetch --depth 1 origin data
+            git worktree add -B data donnees origin/data
+          else
+            git worktree add --orphan -b data donnees
+          fi
+
+      - name: Prix instantanés
+        run: carburants --dossier donnees instantane
+
+      - name: Bornes IRVE (le lundi, ou à la demande)
+        run: |
+          if [ "${{ inputs.irve }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+            carburants --dossier donnees irve
+          else
+            echo "Pas de collecte IRVE aujourd'hui"
+          fi
+
+      - name: Publier sur la branche data
+        working-directory: donnees
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Rien de nouveau"
+            exit 0
+          fi
+          git commit -m "Collecte du $(date -u +%F)"
+          git push origin data

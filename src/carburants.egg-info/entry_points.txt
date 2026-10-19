@@ -1,0 +1,2 @@
+[console_scripts]
+carburants = carburants.cli:main

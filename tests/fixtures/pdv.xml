@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>
+<pdv_liste>
+  <pdv id="1000001" latitude="4620114" longitude="519791" cp="01000" pop="R">
+    <adresse>596 AVENUE DE TREVOUX</adresse>
+    <ville>SAINT-DENIS-LÈS-BOURG</ville>
+    <horaires automate-24-24="1"><jour id="1" nom="Lundi" ferme=""/></horaires>
+    <services><service>Station de gonflage</service><service>Boutique alimentaire</service></services>
+    <prix nom="Gazole" id="1" maj="2025-01-02 09:25:22" valeur="1.739"/>
+    <prix nom="SP98" id="6" maj="2025-01-02T09:25:22" valeur="1.889"/>
+    <rupture id="2" nom="SP95" debut="2024-12-01 10:00:00" fin="" type="temporaire"/>
+  </pdv>
+  <pdv id="13100005" latitude="4352900.12" longitude="545100" cp="13100" pop="A">
+    <adresse>AIRE DE VENTABREN</adresse>
+    <ville>Aix-en-Provence</ville>
+    <prix nom="Gazole" id="1" maj="2008-03-01 08:00:00" valeur="1259"/>
+    <prix nom="Gazole" id="1" maj="2008-03-01 08:00:00" valeur="1259"/>
+  </pdv>
+</pdv_liste>
