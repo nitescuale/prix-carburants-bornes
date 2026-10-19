@@ -1,6 +1,7 @@
 name: Collecte quotidienne
 
-# Chaque matin : photo des prix de toutes les stations ; chaque lundi : bornes IRVE et enseignes des stations (OpenStreetMap).
+# Chaque matin : photo des prix de toutes les stations, cours du Brent et du dollar ; chaque lundi : bornes IRVE,
+# enseignes des stations (OpenStreetMap) et bulletin pétrolier européen.
 # Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données
 # (sans écraser la photo des prix déjà prise ce jour-là).
 # Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
@@ -55,6 +56,12 @@ jobs:
             carburants --dossier donnees instantane
           fi
 
+      # Sources externes gratuites : un échec n'empêche pas de publier le reste, mais il est signalé plus bas
+      - name: Cours du Brent et taux euro/dollar (FRED)
+        id: marches
+        continue-on-error: true
+        run: carburants --dossier donnees marches
+
       - name: Collectes hebdomadaires (le lundi, à la demande, ou quand le code change)
         id: hebdo
         run: |
@@ -74,11 +81,25 @@ jobs:
         continue-on-error: true
         run: carburants --dossier donnees enseignes
 
-      - name: Signaler l'échec des enseignes
-        if: steps.enseignes.outcome == 'failure'
+      - name: Bulletin pétrolier européen (prix avec et sans taxes)
+        id: bulletin
+        if: steps.hebdo.outputs.lancer == 'true'
+        continue-on-error: true
+        run: carburants --dossier donnees bulletin
+
+      - name: Signaler les sources en échec
+        if: steps.enseignes.outcome == 'failure' || steps.marches.outcome == 'failure' || steps.bulletin.outcome == 'failure'
+        env:
+          ENSEIGNES: ${{ steps.enseignes.outcome }}
+          MARCHES: ${{ steps.marches.outcome }}
+          BULLETIN: ${{ steps.bulletin.outcome }}
         run: |
-          echo "::warning title=Enseignes::La récupération des enseignes OpenStreetMap a échoué ; les prix et les bornes sont publiés quand même."
-          echo "⚠️ Enseignes OpenStreetMap non mises à jour (Overpass indisponible ?). Voir le journal de l'étape." >> "$GITHUB_STEP_SUMMARY"
+          for source in "Enseignes OpenStreetMap:$ENSEIGNES" "Brent et euro/dollar (FRED):$MARCHES" "Bulletin pétrolier européen:$BULLETIN"; do
+            if [ "${source##*:}" = "failure" ]; then
+              echo "::warning title=Collecte::${source%%:*} non mis à jour ; le reste est publié quand même."
+              echo "⚠️ ${source%%:*} non mis à jour. Voir le journal de l'étape." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
       - name: Publier sur la branche data
         working-directory: donnees

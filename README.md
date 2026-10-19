@@ -11,6 +11,8 @@ Projet de data science de bout en bout sur les données publiques françaises : 
 |---|---|---|
 | [Prix des carburants](https://www.prix-carburants.gouv.fr/rubrique/opendata/) (ministère de l'Économie) | Prix de chaque station, flux instantané et historique annuel depuis 2007 | Licence Ouverte |
 | [Bornes de recharge IRVE](https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/) (data.gouv.fr) | Points de recharge, puissance, opérateur, tarifs | Licence Ouverte |
+| [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (Réserve fédérale de Saint-Louis) | Brent daté (DCOILBRENTEU) et taux dollar/euro (DEXUSEU), quotidiens | Domaine public (sources EIA et Fed) |
+| [Bulletin pétrolier](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en) (Commission européenne) | Prix moyens hebdomadaires à la pompe par pays, avec et sans taxes | CC BY 4.0 (politique de réutilisation de la Commission) |
 
 ## Installation
 
@@ -27,11 +29,13 @@ carburants instantane     # photo du jour des prix -> data/prix/instantane/date=
 carburants annee 2024     # historique complet d'une année -> data/prix/historique/annee=2024/
 carburants irve           # bornes de recharge -> data/irve/bornes_AAAA-MM-JJ.parquet
 carburants enseignes      # enseigne de chaque station via OpenStreetMap -> data/enseignes/
+carburants marches        # Brent ($/baril, €/litre) et euro/dollar, quotidiens (FRED) -> data/marches/
+carburants bulletin       # historique du bulletin pétrolier européen (prix avec et sans taxes) -> data/marches/
 ```
 
 Chaque collecte produit des fichiers Parquet : `stations.parquet` (une ligne par station) et `prix.parquet` (une ligne par prix publié, avec sa date de mise à jour).
 
-Le workflow [Collecte quotidienne](.github/workflows/collecte.yml) lance la photo des prix chaque matin, les bornes et les enseignes chaque lundi, puis publie les fichiers sur la branche `data`.
+Le workflow [Collecte quotidienne](.github/workflows/collecte.yml) lance la photo des prix et les cours du Brent chaque matin, les bornes, les enseignes et le bulletin pétrolier chaque lundi, puis publie les fichiers sur la branche `data`.
 
 ### Dictionnaire des données
 
