@@ -2,11 +2,13 @@ name: Historique des prix
 
 # Télécharge l'historique complet des prix année par année (depuis 2007) et publie un fichier Parquet
 # par année dans la release « historique » : ces fichiers sont trop gros pour la branche data.
+# Tout changement de la lecture des prix recharge l'historique complet.
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/historique.yml"
+      - "src/carburants/prix.py"
   workflow_dispatch:
     inputs:
       annees:
