@@ -1,0 +1,9 @@
+{
+ "semaines_jugees": 40,
+ "semaines_en_direct": 0,
+ "erreur_recente": 4.29,
+ "erreur_persistance_recente": 4.13,
+ "erreur_directe": null,
+ "erreur_persistance_directe": null,
+ "derive": false
+}
