@@ -1,0 +1,87 @@
+name: Historique des prix
+
+# Télécharge l'historique complet des prix année par année (depuis 2007) et publie un fichier Parquet
+# par année dans la release « historique » : ces fichiers sont trop gros pour la branche data.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/historique.yml"
+  workflow_dispatch:
+    inputs:
+      annees:
+        description: "Années à (re)charger : intervalle 2007-2026 ou liste 2024,2025"
+        default: "2007-2026"
+  schedule:
+    # L'archive de l'année en cours grossit chaque jour : on la recharge chaque dimanche.
+    - cron: "0 6 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: historique
+  cancel-in-progress: false
+
+jobs:
+  preparer:
+    runs-on: ubuntu-latest
+    outputs:
+      annees: ${{ steps.annees.outputs.annees }}
+    steps:
+      - name: Choisir les années
+        id: annees
+        env:
+          DEMANDE: ${{ inputs.annees }}
+          EVENEMENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import datetime, json, os
+          courante = datetime.date.today().year
+          demande = os.environ.get("DEMANDE") or ""
+          if os.environ["EVENEMENT"] == "schedule":
+              annees = [courante]
+          elif not demande:
+              annees = list(range(2007, courante + 1))
+          elif "-" in demande:
+              debut, fin = map(int, demande.split("-"))
+              annees = list(range(debut, fin + 1))
+          else:
+              annees = [int(a) for a in demande.split(",")]
+          print("annees=" + json.dumps(annees))
+          PY
+      - name: Créer la release si besoin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view historique >/dev/null 2>&1 || gh release create historique \
+            --title "Historique des prix des carburants" \
+            --notes "Un fichier prix_AAAA.parquet (chaque changement de prix) et stations_AAAA.parquet par année, mis à jour par le workflow Historique des prix."
+
+  annee:
+    needs: preparer
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        annee: ${{ fromJSON(needs.preparer.outputs.annees) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Télécharger et convertir ${{ matrix.annee }}
+        run: carburants --dossier historique annee ${{ matrix.annee }}
+      - name: Publier dans la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          dossier="historique/prix/historique/annee=${{ matrix.annee }}"
+          mv "$dossier/prix.parquet" "prix_${{ matrix.annee }}.parquet"
+          mv "$dossier/stations.parquet" "stations_${{ matrix.annee }}.parquet"
+          ls -la *.parquet
+          gh release upload historique "prix_${{ matrix.annee }}.parquet" "stations_${{ matrix.annee }}.parquet" --clobber

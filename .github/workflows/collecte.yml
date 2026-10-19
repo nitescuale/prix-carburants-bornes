@@ -1,6 +1,6 @@
 name: Collecte quotidienne
 
-# Chaque matin : photo des prix de toutes les stations ; chaque lundi : fichier des bornes IRVE.
+# Chaque matin : photo des prix de toutes les stations ; chaque lundi : bornes IRVE et enseignes des stations (OpenStreetMap).
 # Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données.
 # Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
 on:
@@ -13,8 +13,8 @@ on:
     - cron: "0 5 * * *"
   workflow_dispatch:
     inputs:
-      irve:
-        description: "Collecter aussi les bornes IRVE"
+      hebdo:
+        description: "Collecter aussi les bornes IRVE et les enseignes"
         type: boolean
         default: false
 
@@ -49,13 +49,20 @@ jobs:
       - name: Prix instantanés
         run: carburants --dossier donnees instantane
 
-      - name: Bornes IRVE (le lundi, ou à la demande)
+      - name: Collectes hebdomadaires (le lundi, à la demande, ou quand le code change)
+        id: hebdo
         run: |
-          if [ "${{ inputs.irve }}" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
-            carburants --dossier donnees irve
-          else
-            echo "Pas de collecte IRVE aujourd'hui"
+          if [ "${{ inputs.hebdo }}" = "true" ] || [ "${{ github.event_name }}" = "push" ] || [ "$(date -u +%u)" = "1" ]; then
+            echo "lancer=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Bornes IRVE
+        if: steps.hebdo.outputs.lancer == 'true'
+        run: carburants --dossier donnees irve
+
+      - name: Enseignes des stations (OpenStreetMap)
+        if: steps.hebdo.outputs.lancer == 'true'
+        run: carburants --dossier donnees enseignes
 
       - name: Publier sur la branche data
         working-directory: donnees

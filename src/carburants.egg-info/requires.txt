@@ -1,5 +1,11 @@
 polars>=1.0
 requests>=2.31
+numpy>=1.26
+scikit-learn>=1.4
+
+[analyse]
+matplotlib>=3.8
+jupyterlab>=4
 
 [dev]
 pytest>=8

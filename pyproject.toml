@@ -6,11 +6,13 @@ requires-python = ">=3.11"
 dependencies = [
     "polars>=1.0",
     "requests>=2.31",
+    "numpy>=1.26",
+    "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-analyse = ["matplotlib>=3.8", "scikit-learn>=1.4", "jupyterlab>=4"]
+analyse = ["matplotlib>=3.8", "jupyterlab>=4"]
 
 [project.scripts]
 carburants = "carburants.cli:main"
