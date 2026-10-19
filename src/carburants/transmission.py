@@ -15,18 +15,20 @@ Les fonctions d'estimation demandent statsmodels (extra « analyse »).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from datetime import date
 
 import numpy as np
 import polars as pl
 
-# Remise carburant de l'État en 2022, en euros par litre hors taxes (18, 30 puis 10 centimes TTC), par semaine du
-# bulletin pétrolier (le lundi) : le bulletin publie des prix remise déduite.
+# Remise carburant de l'État, en euros par litre hors taxes : 18 centimes TTC du 1er avril au 31 août 2022, 30 du
+# 1er septembre au 15 novembre, 10 du 16 novembre au 31 décembre. Le bulletin pétrolier publie des prix remise
+# déduite, relevés en début de semaine (le lundi) : celui du 2 janvier 2023 décrit encore les prix de fin décembre.
 REMISES_2022 = [
     (date(2022, 4, 4), date(2022, 8, 29), 0.15),
     (date(2022, 9, 5), date(2022, 11, 14), 0.25),
-    (date(2022, 11, 21), date(2022, 12, 26), 0.10 / 1.2),
+    (date(2022, 11, 21), date(2023, 1, 2), 0.10 / 1.2),
 ]
 
 
@@ -62,6 +64,7 @@ class Transmission:
     retards_prix: int
     observations: int
     r2: float
+    adf: float = float("nan")
     resultat: object = field(repr=False, default=None)
 
     def coef(self, nom: str) -> float:
@@ -129,29 +132,48 @@ def estimer(
     tendance_df: int = 4,
     retards_hac: int = 4,
     exclure: tuple[date, date] | None = None,
+    combler_trous: bool = False,
 ) -> Transmission:
     """Estime le modèle sur une série hebdomadaire `date`, `prix`, `cout` (les semaines manquantes sont tolérées).
 
     La relation de long terme est estimée d'abord (Engle et Granger), puis la dynamique de court terme par moindres
-    carrés, avec des écarts-types robustes à l'autocorrélation (Newey et West). `exclure` retire de la seconde étape
-    les semaines dont la fenêtre de retards touche la période donnée.
+    carrés, avec des écarts-types robustes à l'autocorrélation (Newey et West). `exclure` retire la période donnée
+    de la relation de long terme, et de la dynamique toutes les semaines dont la fenêtre de retards la touche.
+    `combler_trous` interpole linéairement les semaines manquantes au lieu de perdre les semaines qui les suivent.
+    La statistique `adf` (Dickey-Fuller augmenté sur les résidus de long terme) vérifie la cointégration.
     """
     import statsmodels.api as sm
     from patsy import dmatrix
+    from statsmodels.tsa.stattools import adfuller
 
     if serie.is_empty():
         raise ValueError("Série vide")
     K, J = retards_cout, retards_prix
     grille = pl.DataFrame({"date": pl.date_range(serie["date"].min(), serie["date"].max(), "1w", eager=True)})
+    hors_grille = serie.join(grille, on="date", how="anti")
+    if not hors_grille.is_empty():
+        raise ValueError(f"{hors_grille.height} dates hors de la grille hebdomadaire (première : {hors_grille['date'][0]})")
     x = grille.join(serie.select("date", "prix", "cout"), on="date", how="left")
+    if combler_trous:
+        x = x.with_columns(pl.col("prix", "cout").interpolate())
+    if exclure is not None:
+        debut, fin = exclure
+        fenetre = pl.duration(weeks=max(K, J) + 1)
+        dans_exclusion = pl.col("date").is_between(debut, fin)
+        touche_exclusion = pl.col("date").is_between(debut, pl.lit(fin) + fenetre)
+    else:
+        dans_exclusion = touche_exclusion = pl.lit(False)
 
-    complet = x.drop_nulls(["prix", "cout"])
+    complet = x.drop_nulls(["prix", "cout"]).filter(~dans_exclusion)
     annees = (complet["date"] - complet["date"].min()).dt.total_days().to_numpy() / 365.25
     if tendance_df:
         tendance = np.asarray(dmatrix(f"bs(t, df={tendance_df}, include_intercept=True) - 1", {"t": annees}))
     else:
         tendance = np.ones((complet.height, 1))
     long_terme = sm.OLS(complet["prix"].to_numpy(), np.column_stack([tendance, complet["cout"].to_numpy()])).fit()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)  # format de retour d'adfuller qui évolue dans statsmodels
+        adf = adfuller(long_terme.resid, maxlag=4, autolag=None)[0]
     x = x.join(complet.select("date").with_columns(ecart=pl.Series(long_terme.resid)), on="date", how="left")
 
     x = x.with_columns(dp=pl.col("prix").diff(), dc=pl.col("cout").diff())
@@ -162,12 +184,7 @@ def estimer(
     for j in range(1, J + 1):
         retards[f"prix_{j}"] = pl.col("dp").shift(j)
     retards["rappel"] = pl.col("ecart").shift(1)
-    x = x.with_columns(**retards)
-    if exclure is not None:
-        debut, fin = exclure
-        fenetre = pl.duration(weeks=max(K, J) + 1)
-        x = x.filter(~pl.col("date").is_between(debut, pl.lit(fin) + fenetre))
-    x = x.drop_nulls(["dp", *retards])
+    x = x.with_columns(**retards).filter(~touche_exclusion).drop_nulls(["dp", *retards])
 
     noms = ["constante", *retards]
     X = np.column_stack([np.ones(x.height), x.select(list(retards)).to_numpy()])
@@ -181,5 +198,6 @@ def estimer(
         retards_prix=J,
         observations=x.height,
         r2=float(court_terme.rsquared),
+        adf=float(adf),
         resultat=court_terme,
     )
