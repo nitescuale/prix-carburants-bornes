@@ -37,14 +37,18 @@ def prix_hebdo(prix: pl.LazyFrame | pl.DataFrame, validite_semaines: int = VALID
     publication. Colonnes : station_id, carburant, semaine (date du lundi), prix, publie (le prix a été publié
     cette semaine-là, et non prolongé).
     """
+    if validite_semaines < 1:
+        raise ValueError("validite_semaines doit valoir au moins 1")
     derniere = prix.lazy().select(pl.col("maj").max().dt.truncate(SEMAINE).dt.date()).collect().item()
+    if derniere is None:
+        schema = {"station_id": pl.Int64, "carburant": pl.Utf8, "semaine": pl.Date, "prix": pl.Float64, "publie": pl.Boolean}
+        return pl.DataFrame(schema=schema)
     prolongation = pl.duration(weeks=validite_semaines - 1)
     return (
         prix.lazy()
         .with_columns(semaine=pl.col("maj").dt.truncate(SEMAINE).dt.date())
-        .sort("maj")
         .group_by("station_id", "carburant", "semaine")
-        .agg(pl.col("prix").last())
+        .agg(pl.col("prix").sort_by("maj").last())
         .sort("station_id", "carburant", "semaine")
         .with_columns(suivante=pl.col("semaine").shift(-1).over("station_id", "carburant"))
         .with_columns(
