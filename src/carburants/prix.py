@@ -8,6 +8,7 @@ Deux flux au même format XML (encodé ISO-8859-1, zippé) :
 from __future__ import annotations
 
 import io
+import sys
 import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
@@ -95,6 +96,21 @@ def _entier(valeur: str | None) -> int | None:
         return None
 
 
+def _lire_dates(texte: pl.Expr) -> pl.Expr:
+    """Lit les dates de mise à jour, dont le format varie selon les années.
+
+    Récent : « 2025-01-02 09:25:22 » ou « 2025-01-02T09:25:22 ». Les fichiers anciens ajoutent
+    parfois des fractions de seconde ou un fuseau, ou omettent les secondes : on ne garde que
+    les 19 premiers caractères et on essaie les formats du plus précis au moins précis.
+    """
+    normalise = texte.str.replace("T", " ").str.strip_chars()
+    return pl.coalesce(
+        normalise.str.slice(0, 19).str.to_datetime("%Y-%m-%d %H:%M:%S", time_unit="us", strict=False),
+        normalise.str.slice(0, 16).str.to_datetime("%Y-%m-%d %H:%M", time_unit="us", strict=False),
+        normalise.str.slice(0, 10).str.to_datetime("%Y-%m-%d", time_unit="us", strict=False),
+    )
+
+
 def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Transforme le XML en deux tables : stations et prix (une ligne par prix publié).
 
@@ -140,14 +156,16 @@ def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
             schema={"station_id": pl.Int64, "carburant": pl.Utf8, "carburant_id": pl.Int64, "maj": pl.Utf8, "valeur": pl.Utf8},
         )
         .with_columns(
-            # « 2025-01-02 09:25:22 » ou « 2025-01-02T09:25:22 »
-            maj=pl.col("maj").str.replace("T", " ").str.to_datetime("%Y-%m-%d %H:%M:%S", time_unit="us", strict=False),
+            maj=_lire_dates(pl.col("maj")),
             # Les fichiers récents donnent des euros (1.759), les anciens des millièmes (1759)
             prix=pl.when(valeur > 100).then(valeur / 1000).otherwise(valeur),
         )
         .select(list(PRIX_SCHEMA))
         .cast(PRIX_SCHEMA)
     )
+    illisibles = [brut for brut, lu in zip(prix["maj"], tarifs["maj"]) if brut and lu is None]
+    if illisibles:
+        print(f"{len(illisibles)} dates illisibles, par exemple : {illisibles[:5]}", file=sys.stderr)
     return (
         pl.DataFrame(stations, schema=STATIONS_SCHEMA),
         tarifs.unique().sort(["station_id", "carburant", "maj"]),

@@ -95,3 +95,33 @@ def test_collecter_zip_lit_l_archive_sur_disque(monkeypatch):
     stations, tarifs = prix.collecter_zip(prix.url_annee(2008))
     assert stations["id"].to_list() == [1000001, 13100005]
     assert tarifs.height == 3
+
+
+@pytest.mark.parametrize(
+    ("brut", "attendu"),
+    [
+        ("2025-01-02 09:25:22", datetime(2025, 1, 2, 9, 25, 22)),
+        ("2025-01-02T09:25:22", datetime(2025, 1, 2, 9, 25, 22)),
+        ("2008-03-01T08:00:00.000", datetime(2008, 3, 1, 8, 0, 0)),
+        ("2008-03-01T08:00:00+01:00", datetime(2008, 3, 1, 8, 0, 0)),
+        ("2008-03-01 08:00", datetime(2008, 3, 1, 8, 0)),
+        ("2008-03-01", datetime(2008, 3, 1)),
+    ],
+)
+def test_formats_de_date(brut, attendu):
+    xml = (
+        '<pdv_liste><pdv id="1" latitude="4620114" longitude="519791" cp="01000" pop="R">'
+        f'<prix nom="Gazole" id="1" maj="{brut}" valeur="1259"/></pdv></pdv_liste>'
+    ).encode()
+    _, tarifs = prix.parser_xml(xml)
+    assert tarifs["maj"].to_list() == [attendu]
+
+
+def test_dates_illisibles_signalees(capsys):
+    xml = (
+        '<pdv_liste><pdv id="1" latitude="1" longitude="1" cp="01000" pop="R">'
+        '<prix nom="Gazole" id="1" maj="01/03/2008" valeur="1259"/></pdv></pdv_liste>'
+    ).encode()
+    _, tarifs = prix.parser_xml(xml)
+    assert tarifs["maj"].to_list() == [None]
+    assert "01/03/2008" in capsys.readouterr().err
