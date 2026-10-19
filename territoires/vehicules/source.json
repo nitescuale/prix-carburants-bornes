@@ -1,0 +1,14 @@
+{
+ "jeu": "Voitures particulières immatriculées par commune et par type de recharge",
+ "page": "https://www.data.gouv.fr/datasets/voitures-particulieres-immatriculees-par-commune-et-par-type-de-recharge-jeu-de-donnees-aaadata",
+ "producteur": "Agence ORE",
+ "collecte": "2026-10-19",
+ "ressources": [
+  {
+   "fichier": "Fichier_csv.csv",
+   "titre": "Fichier csv",
+   "url": "https://opendata.agenceore.fr/data-fair/api/v1/datasets/voitures-par-commune-par-energie/raw",
+   "modifie": "2026-01-29T21:18:13+00:00"
+  }
+ ]
+}
