@@ -22,6 +22,7 @@ from carburants import enseignes
         (None, "Géant des Pneus", None),
         ("Élan", None, "TotalEnergies"),
         ("Système U", None, "Système U"),
+        ("Station U", None, "Système U"),
         (None, "Intermarché Saint-Jean", "Intermarché"),
         ("Petrovex", None, "Petrovex"),
         (None, None, None),

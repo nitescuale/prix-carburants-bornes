@@ -41,7 +41,7 @@ ENSEIGNES = [
     (r"leclerc", "E.Leclerc"),
     (r"intermarche", "Intermarché"),
     (r"carrefour", "Carrefour"),
-    (r"super u\b|hyper u\b|u express|systeme u|^u$", "Système U"),
+    (r"(super|hyper|station) u\b|u express|systeme u|^u$", "Système U"),
     (r"auchan", "Auchan"),
     (r"casino", "Casino"),
     (r"\besso\b", "Esso"),
