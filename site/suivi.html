@@ -24,16 +24,16 @@
     <section class="ouverture">
       <p class="etiquette">Industrialisation</p>
       <h1>Les coulisses</h1>
-      <p class="chapeau">Ce site se met à jour seul. Chaque matin, une tâche automatique collecte les prix, vérifie les données et republie la carte&nbsp;; chaque semaine, le modèle de prévision annonce le prix du gazole de la semaine suivante, puis la réalité vient le juger.</p>
+      <p class="chapeau">Ce site se met à jour seul. Chaque matin, une tâche automatique collecte les prix, vérifie les données et republie la carte&nbsp;; chaque lundi, le modèle de prévision annonce le prix du gazole de la semaine qui commence, puis la réalité vient le juger.</p>
     </section>
 
     <section>
       <h2><span class="numero">1</span>La chaîne de données</h2>
       <ol class="chaine">
-        <li><span class="etiquette">Chaque matin, 7 h</span><b>Collecte</b><span>Prix de toutes les stations, cours du Brent ; le lundi, bornes, enseignes et données territoriales.</span></li>
-        <li><span class="etiquette">Aussitôt</span><b>Contrôles</b><span>Nombre de stations, fraîcheur des prix, prix plausibles, âge des fichiers. Une anomalie fait échouer la tâche.</span></li>
+        <li><span class="etiquette">Chaque matin</span><b>Collecte</b><span>Prix de toutes les stations, cours du Brent ; le lundi, bornes, enseignes et données territoriales.</span></li>
+        <li><span class="etiquette">Aussitôt</span><b>Contrôles</b><span>Nombre de stations, fraîcheur des prix, prix plausibles, âge des fichiers. Une anomalie fait échouer la tâche&nbsp;; une alerte est seulement signalée.</span></li>
         <li><span class="etiquette">Branche data</span><b>Stockage</b><span>Fichiers Parquet versionnés dans le dépôt, séparés du code.</span></li>
-        <li><span class="etiquette">Le dimanche</span><b>Prévision</b><span>Historique rechargé, série hebdomadaire recalculée, prévision de la semaine suivante ajoutée au journal.</span></li>
+        <li><span class="etiquette">Le lundi</span><b>Prévision</b><span>Historique rechargé, série hebdomadaire recalculée, prévision de la semaine qui commence ajoutée au journal.</span></li>
         <li><span class="etiquette">Après chaque collecte</span><b>Publication</b><span>Le site est reconstruit avec les données du jour et publié.</span></li>
       </ol>
     </section>
@@ -53,8 +53,9 @@
         <figcaption class="legende" id="legende-prevision"></figcaption>
       </figure>
       <div id="bilan"></div>
-      <p>Le modèle est celui retenu au <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/05_modele.ipynb">notebook 05</a>&nbsp;: une régression ridge qui prévoit la variation du prix médian à partir des variations du Brent des quatre dernières semaines, réestimée chaque semaine sur tout le passé. La référence à battre est la persistance («&nbsp;le prix ne bouge pas&nbsp;»). Les prévisions marquées «&nbsp;rétrospectives&nbsp;» ont été calculées après coup pour les semaines de l'année, chacune avec les seules données de l'époque&nbsp;; les prévisions «&nbsp;en direct&nbsp;» sont enregistrées avant que la semaine ne commence et jamais réécrites.</p>
-      <p class="tres-petit discret">Le cours du Brent (FRED) est publié avec une semaine de retard environ&nbsp;: quand celui de la dernière semaine manque, la prévision suppose qu'il n'a pas bougé. Une alerte se déclenche si l'erreur des douze dernières semaines dépasse le double de celle mesurée au notebook 05 depuis 2022.</p>
+      <p>Le modèle est celui retenu au <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/05_modele.ipynb">notebook 05</a>&nbsp;: une régression ridge qui prévoit la variation du prix médian à partir des variations du Brent des quatre dernières semaines, réestimée chaque semaine sur tout le passé. La référence à battre est la persistance («&nbsp;le prix ne bouge pas&nbsp;»). Les prévisions marquées «&nbsp;rétrospectives&nbsp;» ont été calculées après coup pour les semaines de l'année, chacune avec un modèle estimé sur le seul passé et le Brent publié à l'époque&nbsp;; les prévisions «&nbsp;en direct&nbsp;» sont enregistrées le lundi matin, au début de la semaine prévue, et jamais réécrites.</p>
+      <p>Une limite apparaît ici, et c'est le rôle de ce suivi de la montrer. Le cours du Brent vient de FRED, qui le publie avec une dizaine de jours de retard&nbsp;: le lundi matin, le modèle ne connaît le pétrole que jusqu'au vendredi de l'avant-dernière semaine. Le notebook 05 supposait le cours connu au jour le jour, comme pour quiconque suit les marchés&nbsp;; avec ce retard, la régression ne fait plus mieux que la persistance (3,0 centimes d'erreur moyenne depuis 2022 pour l'une comme pour l'autre, contre 2,7 avec le cours du jour). Une source de cotation quotidienne lui rendrait son avance.</p>
+      <p class="tres-petit discret">Une alerte se déclenche si, sur au moins huit semaines prévues en direct, la prévision se trompe de 20&nbsp;% de plus que la persistance jugée sur les mêmes semaines.</p>
     </section>
   </main>
 

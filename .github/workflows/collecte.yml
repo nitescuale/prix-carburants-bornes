@@ -124,7 +124,12 @@ jobs:
             exit 0
           fi
           git commit -m "Collecte du $(date -u +%F)"
-          git push origin data
+          # Le suivi hebdomadaire publie aussi sur la branche data : en cas de course, on reprend ses commits
+          for essai in 1 2 3; do
+            git push origin data && exit 0
+            git pull --rebase origin data
+          done
+          exit 1
 
       - name: Échouer si un contrôle est en erreur
         if: steps.controle.outcome == 'failure'

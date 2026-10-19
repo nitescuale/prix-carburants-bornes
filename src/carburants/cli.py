@@ -144,9 +144,12 @@ def suivre_prevision(dossier: Path, historique: Path, complet: bool) -> None:
     print(f"Série : {serie.height} semaines jusqu'au {serie['semaine'].max()} ; prévision pour la semaine du "
           f"{prochaine['semaine']} : {prochaine['prevision']:.3f} €/L (dernier prix {prochaine['prix_base']:.3f}) ; "
           f"erreur récente {bilan['erreur_recente']} c (persistance {bilan['erreur_persistance_recente']} c)")
+    if prochaine["faite_le"] != aujourd_hui:
+        print(f"::warning title=Prévision::Pas de prévision en direct : la série s'arrête au {serie['semaine'].max()}, "
+              "l'historique des prix est en retard.")
     if bilan["derive"]:
-        print(f"::warning title=Prévision::L'erreur des 12 dernières semaines ({bilan['erreur_recente']} c) dépasse "
-              f"le double de celle du notebook 05 ({bilan['erreur_reference']} c).")
+        print(f"::warning title=Prévision::En direct, la prévision se trompe de {bilan['erreur_directe']} c en moyenne, "
+              f"nettement plus que la persistance ({bilan['erreur_persistance_directe']} c) : le modèle est à revoir.")
 
 
 def main() -> None:

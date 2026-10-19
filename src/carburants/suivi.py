@@ -16,13 +16,17 @@ import numpy as np
 import polars as pl
 
 from carburants import analyse, transmission
+from carburants.modele import remise_fin_de_semaine
 from carburants.web import FRAICHEUR_JOURS, dernier
 
 ORDRE = {"ok": 0, "alerte": 1, "erreur": 2}
 CARBURANT = "Gazole"
 VARIABLES = [f"cout_{k}" for k in range(4)]  # variations du Brent sur les quatre dernières semaines
-# Erreur moyenne de la prévision (Brent seul) depuis 2022 dans le notebook 05, en centimes : la référence du suivi
-ERREUR_REFERENCE = 2.74
+# FRED publie le Brent avec environ dix jours de retard : le lundi matin où la prévision est faite, le dernier cours
+# connu date d'environ neuf jours avant la fin de la semaine écoulée. Le modèle n'utilise que ce qui était publié.
+RETARD_BRENT_JOURS = 9
+# Le modèle dérive si, sur au moins 8 semaines prévues en direct, il se trompe de 20 % de plus que la persistance
+SEMAINES_DERIVE, MINIMUM_DERIVE, SEUIL_DERIVE = 12, 8, 1.2
 
 
 # --- Contrôles de qualité -------------------------------------------------------------------------------------------
@@ -50,6 +54,9 @@ def controler(dossier: Path, jour: date) -> dict:
     jour_photo = date.fromisoformat(photo.name.removeprefix("date=")) if photo else None
     controles.append(_controle("Date de la photo des prix", jour_photo.isoformat() if jour_photo else None,
                                "celle du jour", "ok" if jour_photo == jour else "erreur"))
+    if photo is not None and not all((photo / f).exists() for f in ("stations.parquet", "prix.parquet")):
+        controles.append(_controle("Fichiers de la photo", "incomplets", "stations et prix", "erreur"))
+        photo = None
     if photo is not None:
         stations = pl.read_parquet(photo / "stations.parquet")
         prix = pl.read_parquet(photo / "prix.parquet")
@@ -95,7 +102,9 @@ def controler(dossier: Path, jour: date) -> dict:
         controles.append(_controle("Retard du cours du Brent (jours)", None, "au plus 14 jours", "alerte"))
 
     fichier_enseignes = dernier(dossier / "enseignes", "stations_enseignes_*.parquet")
-    if fichier_enseignes is not None:
+    if fichier_enseignes is None:
+        controles.append(_controle("Stations avec une enseigne (%)", None, "au moins 70 %", "alerte"))
+    else:
         couverture = pl.read_parquet(fichier_enseignes)["enseigne"].is_not_null().mean() * 100
         controles.append(_controle("Stations avec une enseigne (%)", round(couverture, 1), "au moins 70 %",
                                    _seuil(couverture, 50, 70)))
@@ -119,8 +128,9 @@ def serie_nationale(historique: Path, annees: list[int]) -> pl.DataFrame:
     """Le prix médian national du gazole chaque semaine (datée de son lundi) des `annees`, comme au notebook 05.
 
     Une semaine appartient à l'année de son dimanche. Chaque année est calculée avec la précédente, pour que les
-    prix publiés en décembre et prolongés en janvier comptent ; seules les semaines complètes (finies avant le
-    dernier prix publié) sont gardées.
+    prix publiés en décembre et prolongés en janvier comptent. Une semaine n'est gardée que si les prix vont jusqu'à
+    son samedi, dernier jour où presque toutes les stations mettent à jour leurs prix : l'archive téléchargée le
+    lundi matin s'arrête au samedi ou au dimanche selon l'heure de sa mise à jour.
     """
     morceaux = []
     disponibles = {int(f.stem.removeprefix("prix_")) for f in historique.glob("prix_*.parquet")}
@@ -129,7 +139,8 @@ def serie_nationale(historique: Path, annees: list[int]) -> pl.DataFrame:
         prix = prix.filter(pl.col("carburant") == CARBURANT)
         fin = prix.select(pl.col("maj").max().dt.date()).collect().item()
         dimanche = pl.col("semaine") + pl.duration(days=6)
-        hebdo = analyse.prix_hebdo(prix).filter(dimanche.dt.year() == annee, dimanche <= fin)
+        samedi = pl.col("semaine") + pl.duration(days=5)
+        hebdo = analyse.prix_hebdo(prix).filter(dimanche.dt.year() == annee, samedi <= fin)
         morceaux.append(hebdo.group_by("semaine").agg(prix=pl.col("prix").median(), stations=pl.len()))
     return pl.concat(morceaux).sort("semaine")
 
@@ -141,12 +152,14 @@ def fusionner_serie(ancienne: pl.DataFrame | None, nouvelle: pl.DataFrame) -> pl
     return pl.concat([ancienne.filter(~pl.col("semaine").is_in(nouvelle["semaine"].implode())), nouvelle]).sort("semaine")
 
 
-def table(serie: pl.DataFrame, marches: pl.DataFrame):
-    """Les variables de prévision (`modele.table_prevision`) : le Brent connu à la fin de chaque semaine est la
-    moyenne des sept jours qui précèdent le lundi suivant ; s'il n'est pas encore publié, le dernier connu le remplace."""
+def table(serie: pl.DataFrame, marches: pl.DataFrame, retard_jours: int = RETARD_BRENT_JOURS):
+    """Les variables de prévision (`modele.table_prevision`). Le Brent d'une semaine est celui qui était publié le
+    lundi suivant : la moyenne de sept jours qui finissent `retard_jours` avant le dimanche (délai de FRED). Le
+    modèle est estimé et utilisé avec ce même décalage ; s'il manque un cours, le dernier connu le remplace."""
     from carburants import modele
 
-    brent = transmission.brent_hebdo(marches).select(
+    publie = marches.with_columns(pl.col("date") + pl.duration(days=retard_jours))
+    brent = transmission.brent_hebdo(publie).select(
         (pl.col("date") - pl.duration(weeks=1)).alias("semaine"), pl.col("brent_eur_litre").alias("cout")
     )
     jointe = serie.select("semaine", "prix").join(brent, on="semaine", how="left").sort("semaine")
@@ -166,13 +179,16 @@ def prevoir_semaine(t, i: int) -> dict:
     passe = t.loc[: i - 1].dropna(subset=[*VARIABLES, "cible"])
     modele = _ridge().fit(passe[VARIABLES], passe["cible"])
     variation = float(modele.predict(t.loc[[i], VARIABLES])[0])
-    remise = float(t.loc[i, "variation_remise"]) if not np.isnan(t.loc[i, "variation_remise"]) else 0.0
+    semaine = t.loc[i, "semaine"]
+    suivante = semaine + timedelta(weeks=1)
+    # Le modèle prévoit le prix hors remise (prix affiché + remise) : une remise qui augmente fait baisser le prix affiché
+    variation_remise = remise_fin_de_semaine(suivante) - remise_fin_de_semaine(semaine)
     base = float(t.loc[i, "prix_affiche"])
     return {
-        "semaine": t.loc[i, "semaine"] + timedelta(weeks=1),
+        "semaine": suivante,
         "prix_base": round(base, 4),
-        "prevision": round(base + variation + remise, 4),
-        "persistance": round(base + remise, 4),
+        "prevision": round(base + variation - variation_remise, 4),
+        "persistance": round(base - variation_remise, 4),
     }
 
 
@@ -181,7 +197,9 @@ def prevoir(serie: pl.DataFrame, marches: pl.DataFrame, journal: pl.DataFrame | 
     """Le journal des prévisions, complété par la prévision de la semaine qui suit la dernière semaine connue.
 
     Au premier lancement (journal vide), les semaines depuis `retro_depuis` sont prévues « après coup », chacune avec
-    les seules données de l'époque, pour que le suivi ne parte pas de zéro ; elles sont marquées comme rétrospectives.
+    un modèle estimé sur le seul passé et le Brent publié à l'époque, pour que le suivi ne parte pas de zéro ; elles
+    sont marquées comme rétrospectives. La prévision en direct n'est faite que pour une semaine qui n'est pas encore
+    finie le jour du lancement (sinon l'historique est en retard et il n'y a rien à prévoir).
     """
     t = table(serie, marches)
     utilisable = t.dropna(subset=VARIABLES).reset_index(drop=True)
@@ -189,7 +207,9 @@ def prevoir(serie: pl.DataFrame, marches: pl.DataFrame, journal: pl.DataFrame | 
     if (journal is None or journal.is_empty()) and retro_depuis is not None:
         for i in utilisable.index[utilisable["semaine"] >= retro_depuis][:-1]:
             lignes.append(prevoir_semaine(utilisable, i) | {"faite_le": None, "mode": "rétrospectif"})
-    lignes.append(prevoir_semaine(utilisable, utilisable.index[-1]) | {"faite_le": aujourd_hui, "mode": "direct"})
+    directe = prevoir_semaine(utilisable, utilisable.index[-1])
+    if directe["semaine"] + timedelta(days=6) >= aujourd_hui:
+        lignes.append(directe | {"faite_le": aujourd_hui, "mode": "direct"})
     nouvelles = pl.DataFrame(lignes, schema={
         "semaine": pl.Date, "prix_base": pl.Float64, "prevision": pl.Float64, "persistance": pl.Float64,
         "faite_le": pl.Date, "mode": pl.Utf8,
@@ -213,19 +233,27 @@ def evaluer(journal: pl.DataFrame, serie: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def bilan(evalue: pl.DataFrame, semaines: int = 12) -> dict:
-    """Les erreurs moyennes (centimes) des dernières prévisions jugées, et une alerte si le modèle dérive : erreur
-    sur les `semaines` dernières plus de deux fois supérieure à celle du notebook 05 depuis 2022."""
+def bilan(evalue: pl.DataFrame, semaines: int = SEMAINES_DERIVE) -> dict:
+    """Les erreurs moyennes (centimes) des `semaines` dernières prévisions jugées, et une alerte si le modèle dérive :
+    sur les dernières prévisions faites en direct (au moins `MINIMUM_DERIVE`), il se trompe nettement plus que la
+    persistance. Comparer à la persistance, jugée sur les mêmes semaines, ne confond pas un marché agité avec un
+    modèle usé."""
     jugees = evalue.drop_nulls("reel")
     recentes = jugees.tail(semaines)
-    erreur = recentes["erreur"].mean() if recentes.height else None
+    directes = jugees.filter(pl.col("mode") == "direct").tail(semaines)
+
+    def moyenne(table, colonne):
+        return round(table[colonne].mean(), 2) if table.height else None
+
+    erreur_directe, persistance_directe = moyenne(directes, "erreur"), moyenne(directes, "erreur_persistance")
     return {
         "semaines_jugees": jugees.height,
         "semaines_en_direct": jugees.filter(pl.col("mode") == "direct").height,
-        "erreur_recente": round(erreur, 2) if erreur is not None else None,
-        "erreur_persistance_recente": round(recentes["erreur_persistance"].mean(), 2) if recentes.height else None,
-        "erreur_reference": ERREUR_REFERENCE,
-        "derive": erreur is not None and recentes.height >= 4 and erreur > 2 * ERREUR_REFERENCE,
+        "erreur_recente": moyenne(recentes, "erreur"),
+        "erreur_persistance_recente": moyenne(recentes, "erreur_persistance"),
+        "erreur_directe": erreur_directe,
+        "erreur_persistance_directe": persistance_directe,
+        "derive": directes.height >= MINIMUM_DERIVE and erreur_directe > SEUIL_DERIVE * persistance_directe,
     }
 
 

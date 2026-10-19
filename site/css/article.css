@@ -102,8 +102,8 @@
 }
 .jours { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0 8px; }
 .jour { width: 14px; height: 14px; border-radius: 3px; background: var(--aqua); }
-.jour.alerte { background: #e3c45a; }
-.jour.erreur { background: var(--rouge); }
+.jour-alerte { background: #e3c45a; }
+.jour-erreur { background: var(--rouge); }
 .tuiles.tuiles-3 { grid-template-columns: repeat(3, 1fr); }
 .tuile-valeur.petite { font-size: 20px; }
 .graphique { margin: 24px 0 !important; }

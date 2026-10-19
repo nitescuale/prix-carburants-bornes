@@ -1,7 +1,7 @@
 name: Suivi hebdomadaire
 
-# Après chaque rechargement de l'historique (le dimanche) : la série hebdomadaire du prix médian du gazole, la
-# prévision de la semaine suivante et le journal des prévisions passées, publiés sur la branche data (dossier suivi/).
+# Après chaque rechargement de l'historique (le lundi) : la série hebdomadaire du prix médian du gazole, la
+# prévision de la semaine qui commence et le journal des prévisions passées, publiés sur la branche data (dossier suivi/).
 # Au premier lancement, ou à la demande, toute la série est recalculée depuis 2007.
 on:
   workflow_run:
@@ -17,9 +17,10 @@ on:
 permissions:
   contents: write
 
-# Même groupe que la collecte : les deux tâches publient sur la branche data, l'une après l'autre
+# Un groupe à part : un groupe partagé avec la collecte pourrait annuler une collecte en attente. Les deux tâches
+# publient sur la branche data et réessaient leur push si l'autre est passée entre-temps.
 concurrency:
-  group: collecte
+  group: suivi
   cancel-in-progress: false
 
 jobs:
@@ -44,15 +45,24 @@ jobs:
         id: historique
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           COMPLET: ${{ inputs.complet }}
+          DECLENCHEUR: ${{ github.event.workflow_run.event }}
         run: |
           mkdir historique
           if [ "$COMPLET" = "true" ] || [ ! -f donnees/suivi/serie_gazole.parquet ]; then
             gh release download historique --dir historique --pattern "prix_*.parquet"
             echo "option=--complet" >> "$GITHUB_OUTPUT"
+          elif [ "$DECLENCHEUR" != "schedule" ]; then
+            # Historique rechargé à la main ou après un changement de la lecture des prix : toute la série est
+            # recalculée, mais le journal des prévisions est gardé
+            gh release download historique --dir historique --pattern "prix_*.parquet"
           else
+            # Trois années pour en recalculer deux : la dernière semaine de l'an passé, complète seulement en janvier
             annee=$(date -u +%Y)
-            gh release download historique --dir historique --pattern "prix_$((annee - 1)).parquet" --pattern "prix_${annee}.parquet"
+            for a in $((annee - 2)) $((annee - 1)) "$annee"; do
+              gh release download historique --dir historique --pattern "prix_${a}.parquet"
+            done
           fi
           ls -la historique
 

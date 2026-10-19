@@ -29,7 +29,7 @@
   }
   if (suivi.qualite?.length) {
     const jours = suivi.qualite
-      .map((q) => `<span class="jour ${q.statut}" title="${date(q.date)} : ${LIBELLES[q.statut]}, ${nombre(q.stations)} stations, ${nombre(q.part_recente, 1)} % de prix récents"></span>`)
+      .map((q) => `<span class="jour jour-${q.statut}" title="${date(q.date)} : ${LIBELLES[q.statut]}, ${nombre(q.stations)} stations, ${nombre(q.part_recente, 1)} % de prix récents"></span>`)
       .join("");
     const alertes = suivi.qualite.filter((q) => q.statut !== "ok").length;
     document.getElementById("historique-qualite").innerHTML = `
@@ -46,7 +46,7 @@
 
   // La prévision
   if (!suivi.previsions) {
-    document.getElementById("prevision").innerHTML = '<p class="discret">La première prévision sera publiée après le prochain rechargement de l\'historique (le dimanche).</p>';
+    document.getElementById("prevision").innerHTML = '<p class="discret">La première prévision sera publiée après le prochain rechargement de l\'historique (le lundi).</p>';
     return;
   }
   const previsions = Commun.objets(suivi.previsions);
@@ -64,8 +64,8 @@
   if (b && b.erreur_recente !== null) {
     const gain = (1 - b.erreur_recente / b.erreur_persistance_recente) * 100;
     document.getElementById("bilan").innerHTML = `
-      <p>Sur les ${Math.min(12, b.semaines_jugees)} dernières semaines, la prévision s'est trompée en moyenne de <b>${nombre(b.erreur_recente, 1)} centimes</b>, contre ${nombre(b.erreur_persistance_recente, 1)} pour la persistance (${gain >= 0 ? `${nombre(gain, 0)} % de mieux` : `${nombre(-gain, 0)} % de moins bien`})&nbsp;; le notebook 05 mesurait ${nombre(b.erreur_reference, 1)} centimes depuis 2022. ${b.semaines_en_direct ? `${b.semaines_en_direct} de ces semaines ont été prévues en direct.` : "Aucune prévision en direct n'a encore été jugée : les points pleins s'ajouteront chaque dimanche."}
-      ${b.derive ? '<span class="alerte" style="display:block;margin-top:8px">Alerte : l\'erreur récente dépasse le double de la référence. Le modèle est peut-être à revoir.</span>' : ""}</p>`;
+      <p>Sur les ${Math.min(12, b.semaines_jugees)} dernières semaines, la prévision s'est trompée en moyenne de <b>${nombre(b.erreur_recente, 1)} centimes</b>, contre ${nombre(b.erreur_persistance_recente, 1)} pour la persistance (${gain >= 0 ? `${nombre(gain, 0)} % de mieux` : `${nombre(-gain, 0)} % de moins bien`}). ${b.semaines_en_direct ? `En direct seulement, sur ${Math.min(12, b.semaines_en_direct)} semaine${b.semaines_en_direct > 1 ? "s" : ""}&nbsp;: ${nombre(b.erreur_directe, 1)} centimes, contre ${nombre(b.erreur_persistance_directe, 1)} pour la persistance.` : "Aucune prévision en direct n'a encore été jugée : les points pleins s'ajouteront chaque lundi."}
+      ${b.derive ? '<span class="alerte" style="display:block;margin-top:8px">Alerte : en direct, la prévision se trompe nettement plus que la persistance. Le modèle est à revoir.</span>' : ""}</p>`;
   }
 
   function decaler(iso, jours) {
