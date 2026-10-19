@@ -10,8 +10,8 @@ from __future__ import annotations
 import io
 import sys
 import tempfile
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 from typing import BinaryIO
 
@@ -21,6 +21,9 @@ import requests
 BASE_URL = "https://donnees.roulez-eco.fr/opendata"
 URL_INSTANTANE = f"{BASE_URL}/instantane"
 TIMEOUT = 120
+# Au-delà, un prix est forcément en millièmes d'euro ; en dehors de PRIX_PLAUSIBLES, c'est une erreur de saisie
+SEUIL_MILLIEMES = 10
+PRIX_PLAUSIBLES = (0.2, 4.0)
 
 STATIONS_SCHEMA = {
     "id": pl.Int64,
@@ -32,6 +35,12 @@ STATIONS_SCHEMA = {
     "ville": pl.Utf8,
     "automate_24_24": pl.Boolean,
     "services": pl.List(pl.Utf8),
+    # Fermeture déclarée : T (temporaire) ou D (définitive), avec ses dates
+    "fermeture_type": pl.Utf8,
+    "fermeture_debut": pl.Utf8,
+    "fermeture_fin": pl.Utf8,
+    # Carburants en rupture de stock sans date de fin
+    "ruptures": pl.List(pl.Utf8),
 }
 
 PRIX_SCHEMA = {
@@ -80,13 +89,16 @@ def collecter_zip(url: str) -> tuple[pl.DataFrame, pl.DataFrame]:
 
 
 def _coordonnee(valeur: str | None) -> float | None:
-    # Les coordonnées sont publiées en degrés multipliés par 100 000.
+    # Les coordonnées sont publiées en degrés multipliés par 100 000, parfois déjà en degrés.
     if not valeur:
         return None
     try:
-        return float(valeur) / 100_000
+        nombre = float(valeur)
     except ValueError:
         return None
+    degres = nombre / 100_000 if abs(nombre) > 180 else nombre
+    # 0 signifie « non renseigné »
+    return degres if degres != 0 and abs(degres) <= 180 else None
 
 
 def _entier(valeur: str | None) -> int | None:
@@ -138,6 +150,11 @@ def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
         stations["ville"].append((pdv.findtext("ville") or "").strip() or None)
         stations["automate_24_24"].append(horaires is not None and horaires.get("automate-24-24") == "1")
         stations["services"].append([s.text.strip() for s in pdv.iter("service") if s.text])
+        fermeture = pdv.find("fermeture")
+        attributs = fermeture.attrib if fermeture is not None else {}
+        for champ in ("type", "debut", "fin"):
+            stations[f"fermeture_{champ}"].append(attributs.get(champ) or None)
+        stations["ruptures"].append(sorted({r.get("nom") for r in pdv.iter("rupture") if r.get("nom") and not r.get("fin")}))
         for p in pdv.iter("prix"):
             if p.get("valeur") is None:
                 continue
@@ -150,6 +167,7 @@ def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
         pdv.clear()
 
     valeur = pl.col("valeur").cast(pl.Float64, strict=False)
+    bas, haut = PRIX_PLAUSIBLES
     tarifs = (
         pl.DataFrame(
             prix,
@@ -158,7 +176,7 @@ def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
         .with_columns(
             maj=_lire_dates(pl.col("maj")),
             # Les fichiers récents donnent des euros (1.759), les anciens des millièmes (1759)
-            prix=pl.when(valeur > 100).then(valeur / 1000).otherwise(valeur),
+            prix=pl.when(valeur > SEUIL_MILLIEMES).then(valeur / 1000).otherwise(valeur),
         )
         .select(list(PRIX_SCHEMA))
         .cast(PRIX_SCHEMA)
@@ -166,7 +184,14 @@ def parser_xml(source: bytes | BinaryIO) -> tuple[pl.DataFrame, pl.DataFrame]:
     illisibles = [brut for brut, lu in zip(prix["maj"], tarifs["maj"]) if brut and lu is None]
     if illisibles:
         print(f"{len(illisibles)} dates illisibles, par exemple : {illisibles[:5]}", file=sys.stderr)
-    return (
-        pl.DataFrame(stations, schema=STATIONS_SCHEMA),
-        tarifs.unique().sort(["station_id", "carburant", "maj"]),
+    aberrants = tarifs.filter(~pl.col("prix").is_between(bas, haut))
+    if aberrants.height:
+        exemples = aberrants["prix"].head(5).to_list()
+        print(f"{aberrants.height} prix hors de [{bas} ; {haut}] € écartés, par exemple : {exemples}", file=sys.stderr)
+    tarifs = (
+        tarifs.filter(pl.col("prix").is_between(bas, haut))
+        # Plusieurs prix pour la même station, le même carburant et la même minute : le dernier publié l'emporte
+        .unique(["station_id", "carburant", "maj"], keep="last", maintain_order=True)
+        .sort(["station_id", "carburant", "maj"])
     )
+    return pl.DataFrame(stations, schema=STATIONS_SCHEMA), tarifs

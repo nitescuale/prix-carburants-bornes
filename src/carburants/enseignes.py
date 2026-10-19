@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 
 import numpy as np
 import polars as pl
@@ -34,15 +35,15 @@ out center tags;
 RAYON_M = 250
 RAYON_TERRE_M = 6_371_000
 
-# Motif (sur la marque ou le nom en minuscules) -> enseigne normalisée
+# Motif (sur la marque ou le nom, en minuscules et sans accents) -> enseigne normalisée
 ENSEIGNES = [
     (r"total|elan\b", "TotalEnergies"),
     (r"leclerc", "E.Leclerc"),
-    (r"intermarch", "Intermarché"),
+    (r"intermarche", "Intermarché"),
     (r"carrefour", "Carrefour"),
-    (r"super u\b|hyper u\b|u express|syst[eè]me u|^u$", "Système U"),
+    (r"super u\b|hyper u\b|u express|systeme u|^u$", "Système U"),
     (r"auchan", "Auchan"),
-    (r"casino|g[ée]ant", "Casino"),
+    (r"casino", "Casino"),
     (r"\besso\b", "Esso"),
     (r"^bp\b|\bbp\b", "BP"),
     (r"shell", "Shell"),
@@ -55,20 +56,32 @@ ENSEIGNES = [
 GRANDES_SURFACES = {"E.Leclerc", "Intermarché", "Carrefour", "Système U", "Auchan", "Casino", "Netto", "Cora"}
 
 
+# Préfixes génériques retirés du nom avant d'y chercher une enseigne
+PREFIXE_NOM = re.compile(r"^(station(s)?([ -]service)?|relais)\s+")
+
+
+def _simplifier(texte: str) -> str:
+    sans_accents = unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode()
+    return sans_accents.strip().lower()
+
+
 def normaliser(marque: str | None, nom: str | None = None) -> str | None:
     """Ramène les variantes (« Total Access », « Super U »...) à une enseigne.
 
-    La marque OSM est prioritaire ; le nom ne sert que s'il contient une enseigne connue.
+    La marque OSM est prioritaire. Le nom ne sert que s'il commence par une enseigne connue
+    (« Station Avia du Lac » oui, « Garage du Carrefour » non).
     """
-    for texte, garder_brut in ((marque, True), (nom, False)):
-        if not texte:
-            continue
-        bas = texte.strip().lower()
+    if marque and marque.strip():
+        bas = _simplifier(marque)
         for motif, enseigne in ENSEIGNES:
             if re.search(motif, bas):
                 return enseigne
-        if garder_brut:
-            return texte.strip()
+        return marque.strip()
+    if nom:
+        bas = PREFIXE_NOM.sub("", _simplifier(nom))
+        for motif, enseigne in ENSEIGNES:
+            if re.match(motif, bas):
+                return enseigne
     return None
 
 
@@ -79,8 +92,14 @@ def _requete_overpass(requete: str) -> list[dict]:
         try:
             reponse = requests.post(url, data={"data": requete}, headers=ENTETES, timeout=400)
             reponse.raise_for_status()
-            return reponse.json()["elements"]
-        except (requests.RequestException, ValueError) as erreur:
+            contenu = reponse.json()
+            # En cas de dépassement de délai, Overpass répond 200 avec une remarque et une liste tronquée
+            if "error" in contenu.get("remark", "").lower():
+                raise ValueError(f"réponse partielle : {contenu['remark']}")
+            if not contenu.get("elements"):
+                raise ValueError("aucune station dans la réponse")
+            return contenu["elements"]
+        except (requests.RequestException, ValueError, KeyError) as erreur:
             erreurs.append(f"{url} : {erreur}")
             print(f"Overpass, tentative {tentative + 1} échouée : {erreur}")
             time.sleep(30 * (tentative + 1))
@@ -122,7 +141,12 @@ def elements_vers_table(elements: list[dict]) -> pl.DataFrame:
 
 
 def apparier(stations: pl.DataFrame, osm: pl.DataFrame, rayon_m: float = RAYON_M) -> pl.DataFrame:
-    """Associe à chaque station du flux la station OSM la plus proche (ou rien au-delà du rayon)."""
+    """Associe à chaque station du flux la station OSM la plus proche (ou rien au-delà du rayon).
+
+    Deux stations du flux très proches peuvent recevoir la même station OSM : osm_partage le signale.
+    """
+    if osm.is_empty():
+        raise ValueError("Aucune station OpenStreetMap à apparier")
     stations = stations.drop_nulls(["latitude", "longitude"])
     arbre = BallTree(np.radians(osm.select("latitude", "longitude").to_numpy()), metric="haversine")
     distances, indices = arbre.query(np.radians(stations.select("latitude", "longitude").to_numpy()), k=1)
@@ -132,4 +156,7 @@ def apparier(stations: pl.DataFrame, osm: pl.DataFrame, rayon_m: float = RAYON_M
     hors_rayon = pl.col("distance_m") > rayon_m
     return resultat.with_columns(
         [pl.when(hors_rayon).then(None).otherwise(pl.col(c)).alias(c) for c in ("osm_id", "osm_marque", "osm_nom", "enseigne")]
-    ).with_columns(grande_surface=pl.col("enseigne").is_in(list(GRANDES_SURFACES)).fill_null(False))
+    ).with_columns(
+        grande_surface=pl.col("enseigne").is_in(list(GRANDES_SURFACES)).fill_null(False),
+        osm_partage=(pl.len().over("osm_id") > 1) & pl.col("osm_id").is_not_null(),
+    )

@@ -15,7 +15,8 @@ on:
         description: "Années à (re)charger : intervalle 2007-2026 ou liste 2024,2025"
         default: "2007-2026"
   schedule:
-    # L'archive de l'année en cours grossit chaque jour : on la recharge chaque dimanche.
+    # L'archive de l'année en cours grossit chaque jour : on la recharge chaque dimanche
+    # (en janvier, aussi l'année précédente, pour ses derniers jours).
     - cron: "0 6 * * 0"
 
 permissions:
@@ -42,7 +43,7 @@ jobs:
           courante = datetime.date.today().year
           demande = os.environ.get("DEMANDE") or ""
           if os.environ["EVENEMENT"] == "schedule":
-              annees = [courante]
+              annees = [courante - 1, courante] if datetime.date.today().month == 1 else [courante]
           elif not demande:
               annees = list(range(2007, courante + 1))
           elif "-" in demande:
@@ -86,4 +87,21 @@ jobs:
           mv "$dossier/prix.parquet" "prix_${{ matrix.annee }}.parquet"
           mv "$dossier/stations.parquet" "stations_${{ matrix.annee }}.parquet"
           ls -la *.parquet
-          gh release upload historique "prix_${{ matrix.annee }}.parquet" "stations_${{ matrix.annee }}.parquet" --clobber
+          # Une fiche par année : quel commit a produit les fichiers, et un résumé pour les contrôler
+          python3 - <<'PY' > "prix_${{ matrix.annee }}.json"
+          import datetime, json
+          import polars as pl
+          prix = pl.read_parquet("prix_${{ matrix.annee }}.parquet")
+          print(json.dumps({
+              "annee": ${{ matrix.annee }},
+              "commit": "${{ github.sha }}",
+              "genere_le": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+              "lignes": prix.height,
+              "stations": prix["station_id"].n_unique(),
+              "maj_nulles": prix["maj"].null_count(),
+              "maj_min": str(prix["maj"].min()),
+              "maj_max": str(prix["maj"].max()),
+          }, indent=2))
+          PY
+          cat "prix_${{ matrix.annee }}.json"
+          gh release upload historique "prix_${{ matrix.annee }}.parquet" "stations_${{ matrix.annee }}.parquet" "prix_${{ matrix.annee }}.json" --clobber
