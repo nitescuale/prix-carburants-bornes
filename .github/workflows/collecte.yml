@@ -1,8 +1,14 @@
 name: Collecte quotidienne
 
 # Chaque matin : photo des prix de toutes les stations ; chaque lundi : fichier des bornes IRVE.
+# Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données.
 # Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/carburants/**"
+      - ".github/workflows/collecte.yml"
   schedule:
     - cron: "0 5 * * *"
   workflow_dispatch:
