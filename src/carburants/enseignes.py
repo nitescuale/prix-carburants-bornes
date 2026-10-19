@@ -15,10 +15,20 @@ import requests
 from sklearn.neighbors import BallTree
 
 OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+ENTETES = {"User-Agent": "prix-carburants-bornes/0.1 (https://github.com/nitescuale/prix-carburants-bornes)"}
+# Une requête sur toute la France est trop lourde pour les serveurs Overpass : on découpe
+# la métropole et la Corse en tuiles (sud, ouest, nord, est).
+TUILES = [
+    (41.0, -5.5, 44.5, 2.5),
+    (41.0, 2.5, 44.5, 10.0),
+    (44.5, -5.5, 48.0, 2.5),
+    (44.5, 2.5, 48.0, 10.0),
+    (48.0, -5.5, 51.5, 2.5),
+    (48.0, 2.5, 51.5, 10.0),
+]
 REQUETE = """
-[out:json][timeout:600];
-area["ISO3166-1"="FR"][admin_level=2]->.fr;
-nwr["amenity"="fuel"](area.fr);
+[out:json][timeout:300];
+nwr["amenity"="fuel"]({sud},{ouest},{nord},{est});
 out center tags;
 """
 RAYON_M = 250
@@ -62,18 +72,29 @@ def normaliser(marque: str | None, nom: str | None = None) -> str | None:
     return None
 
 
-def telecharger_osm() -> pl.DataFrame:
-    """Toutes les stations-service OpenStreetMap de France, avec leurs coordonnées et leurs tags."""
-    derniere_erreur: Exception | None = None
-    for tentative, url in enumerate(OVERPASS * 2):
+def _requete_overpass(requete: str) -> list[dict]:
+    erreurs = []
+    for tentative in range(6):
+        url = OVERPASS[tentative % len(OVERPASS)]
         try:
-            reponse = requests.post(url, data={"data": REQUETE}, timeout=900)
+            reponse = requests.post(url, data={"data": requete}, headers=ENTETES, timeout=400)
             reponse.raise_for_status()
-            return elements_vers_table(reponse.json()["elements"])
+            return reponse.json()["elements"]
         except (requests.RequestException, ValueError) as erreur:
-            derniere_erreur = erreur
+            erreurs.append(f"{url} : {erreur}")
+            print(f"Overpass, tentative {tentative + 1} échouée : {erreur}")
             time.sleep(30 * (tentative + 1))
-    raise RuntimeError(f"Overpass indisponible : {derniere_erreur}")
+    raise RuntimeError("Overpass indisponible :\n" + "\n".join(erreurs))
+
+
+def telecharger_osm() -> pl.DataFrame:
+    """Toutes les stations-service OpenStreetMap de métropole et de Corse, avec leurs coordonnées et leurs tags."""
+    elements: list[dict] = []
+    for sud, ouest, nord, est in TUILES:
+        elements += _requete_overpass(REQUETE.format(sud=sud, ouest=ouest, nord=nord, est=est))
+        time.sleep(5)
+    # Une station à cheval sur deux tuiles apparaît deux fois
+    return elements_vers_table(elements).unique("osm_id", keep="first", maintain_order=True)
 
 
 def elements_vers_table(elements: list[dict]) -> pl.DataFrame:

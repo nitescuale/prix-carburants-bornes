@@ -54,3 +54,34 @@ def test_apparier_respecte_le_rayon():
     assert loin["enseigne"] is None
     assert loin["osm_id"] is None
     assert loin["grande_surface"] is False
+
+
+def test_telecharger_osm_parcourt_les_tuiles_et_dedoublonne(monkeypatch):
+    appels = []
+
+    def faux_overpass(requete):
+        appels.append(requete)
+        # La même station revient dans chaque tuile
+        return [{"type": "node", "id": 1, "lat": 44.5, "lon": 2.5, "tags": {"brand": "Avia"}}]
+
+    monkeypatch.setattr(enseignes, "_requete_overpass", faux_overpass)
+    monkeypatch.setattr(enseignes.time, "sleep", lambda s: None)
+    table = enseignes.telecharger_osm()
+    assert len(appels) == len(enseignes.TUILES)
+    assert "(41.0,-5.5,44.5,2.5)" in appels[0]
+    assert table["osm_id"].to_list() == ["node/1"]
+
+
+def test_requete_overpass_reessaie_puis_echoue(monkeypatch):
+    tentatives = []
+
+    def post(url, data, headers, timeout):
+        tentatives.append(url)
+        raise enseignes.requests.ConnectionError("saturé")
+
+    monkeypatch.setattr(enseignes.requests, "post", post)
+    monkeypatch.setattr(enseignes.time, "sleep", lambda s: None)
+    with pytest.raises(RuntimeError, match="saturé"):
+        enseignes._requete_overpass("[out:json];")
+    assert len(tentatives) == 6
+    assert set(tentatives) == set(enseignes.OVERPASS)
