@@ -89,10 +89,11 @@ jupyter lab notebooks/
 | [01_exploration](notebooks/01_exploration.ipynb) | Prix par carburant, autoroute contre route, géographie, concurrence locale, bornes de recharge, qualité des données |
 | [02_historique](notebooks/02_historique.ipynb) | Vingt ans de prix (2007-2026) : record de 2026, écart gazole / essence, prix identiques de TotalEnergies, géographie, jour de la semaine ; chiffres cités vérifiés par le notebook et exportés dans `rapports/chiffres_02.json` |
 | [03_fusee_et_plume](notebooks/03_fusee_et_plume.ipynb) | Du baril à la pompe (2005-2026) : décomposition du prix, marge brute, effet « fusée et plume » (modèle à correction d'erreur asymétrique, `carburants.transmission`), crise de 2026 ; chiffres vérifiés et exportés dans `rapports/chiffres_03.json` |
+| [04_concurrence](notebooks/04_concurrence.ipynb) | La concurrence fait-elle baisser les prix ? Enseigne (dont Total Access), nombre de concurrents et grande surface voisine (régression à effets fixes), ouvertures de grandes surfaces (différence de différences avec placebo, `carburants.concurrence`) ; chiffres vérifiés et exportés dans `rapports/chiffres_04.json` |
 
 Le notebook 02 lit l'historique de la release (`gh release download historique --dir data/historique`) et le reconstruit en série hebdomadaire avec `carburants.analyse.prix_hebdo` : prévoir environ 6 Go de mémoire.
 
-Le notebook 03 lit aussi les cours du Brent et le bulletin pétrolier européen sur la branche `data` (`data/marches/`) ; il demande `statsmodels` et `openpyxl` (extra `analyse`).
+Le notebook 03 lit aussi les cours du Brent et le bulletin pétrolier européen sur la branche `data` (`data/marches/`) ; il demande `statsmodels` et `openpyxl` (extra `analyse`). Le notebook 04 lit l'historique et le relevé des enseignes OpenStreetMap (`data/enseignes/`).
 
 Les graphiques exportés pour le site sont dans [`rapports/figures`](rapports/figures).
 
