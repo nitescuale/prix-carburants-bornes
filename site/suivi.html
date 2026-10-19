@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Les coulisses</title>
+  <meta name="description" content="Le projet en production : collecte quotidienne, contrôles de qualité des données et suivi de la prévision hebdomadaire du prix du gazole.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/article.css">
+</head>
+<body>
+  <header class="entete">
+    <a class="marque" href="index.html"><span class="pastilles"><i style="background:var(--orange)"></i><i style="background:var(--violet)"></i></span><span class="titre">Faire le plein ou recharger ?</span></a>
+    <nav>
+      <a href="index.html">Article</a>
+      <a href="carte.html">Carte</a>
+      <a href="trajet.html">Trajet</a>
+      <a href="suivi.html" aria-current="page">Coulisses</a>
+    </nav>
+  </header>
+
+  <main class="article">
+    <section class="ouverture">
+      <p class="etiquette">Industrialisation</p>
+      <h1>Les coulisses</h1>
+      <p class="chapeau">Ce site se met à jour seul. Chaque matin, une tâche automatique collecte les prix, vérifie les données et republie la carte&nbsp;; chaque semaine, le modèle de prévision annonce le prix du gazole de la semaine suivante, puis la réalité vient le juger.</p>
+    </section>
+
+    <section>
+      <h2><span class="numero">1</span>La chaîne de données</h2>
+      <ol class="chaine">
+        <li><span class="etiquette">Chaque matin, 7 h</span><b>Collecte</b><span>Prix de toutes les stations, cours du Brent ; le lundi, bornes, enseignes et données territoriales.</span></li>
+        <li><span class="etiquette">Aussitôt</span><b>Contrôles</b><span>Nombre de stations, fraîcheur des prix, prix plausibles, âge des fichiers. Une anomalie fait échouer la tâche.</span></li>
+        <li><span class="etiquette">Branche data</span><b>Stockage</b><span>Fichiers Parquet versionnés dans le dépôt, séparés du code.</span></li>
+        <li><span class="etiquette">Le dimanche</span><b>Prévision</b><span>Historique rechargé, série hebdomadaire recalculée, prévision de la semaine suivante ajoutée au journal.</span></li>
+        <li><span class="etiquette">Après chaque collecte</span><b>Publication</b><span>Le site est reconstruit avec les données du jour et publié.</span></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2><span class="numero">2</span>Les contrôles du jour</h2>
+      <div id="controles"><p class="discret">Chargement…</p></div>
+      <h3>Les derniers jours</h3>
+      <div id="historique-qualite"></div>
+    </section>
+
+    <section>
+      <h2><span class="numero">3</span>La prévision de la semaine</h2>
+      <div id="prevision"><p class="discret">Chargement…</p></div>
+      <figure class="graphique">
+        <div id="graphique-prevision" role="img" aria-label="Prix médian du gazole chaque semaine et prévisions"></div>
+        <figcaption class="legende" id="legende-prevision"></figcaption>
+      </figure>
+      <div id="bilan"></div>
+      <p>Le modèle est celui retenu au <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/05_modele.ipynb">notebook 05</a>&nbsp;: une régression ridge qui prévoit la variation du prix médian à partir des variations du Brent des quatre dernières semaines, réestimée chaque semaine sur tout le passé. La référence à battre est la persistance («&nbsp;le prix ne bouge pas&nbsp;»). Les prévisions marquées «&nbsp;rétrospectives&nbsp;» ont été calculées après coup pour les semaines de l'année, chacune avec les seules données de l'époque&nbsp;; les prévisions «&nbsp;en direct&nbsp;» sont enregistrées avant que la semaine ne commence et jamais réécrites.</p>
+      <p class="tres-petit discret">Le cours du Brent (FRED) est publié avec une semaine de retard environ&nbsp;: quand celui de la dernière semaine manque, la prévision suppose qu'il n'a pas bougé. Une alerte se déclenche si l'erreur des douze dernières semaines dépasse le double de celle mesurée au notebook 05 depuis 2022.</p>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <p>Code et tâches automatiques : <a href="https://github.com/nitescuale/prix-carburants-bornes/tree/main/.github/workflows">GitHub Actions</a>. Contrôles : <code>carburants.suivi.controler</code> ; prévision : <code>carburants.suivi.prevoir</code>.</p>
+  </footer>
+
+  <script src="js/commun.js"></script>
+  <script src="js/suivi.js"></script>
+</body>
+</html>

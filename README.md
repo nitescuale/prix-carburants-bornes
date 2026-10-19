@@ -116,6 +116,7 @@ Le dossier [`site/`](site) contient un site statique, sans serveur : l'article (
 | `donnees/recharge.json` | Les sites de recharge rapide (50 kW et plus, stations à moins de 150 m regroupées) : opérateurs, puissance, points de charge, tarif lisible |
 | `donnees/resume.json` | Prix médians du jour, tarifs de l'électricité (domicile et bornes, médiane des opérateurs) et coût de l'énergie aux 100 km |
 | `donnees/communes.json` | Les communes de métropole et leur centre, pour la recherche et le trajet |
+| `donnees/suivi.json` | La série hebdomadaire, le journal des prévisions jugé et les derniers contrôles de la collecte |
 | `donnees/explication.json` | La décomposition du prix de chaque station par le modèle du notebook 05 (copie de `rapports/explication_stations.json`) |
 
 ```bash
@@ -124,6 +125,13 @@ carburants --dossier data explication --annee 2025   # recalcule rapports/explic
 ```
 
 Le workflow [Site](.github/workflows/site.yml) reconstruit le site après chaque collecte et le publie sur GitHub Pages. Le trajet utilise le serveur de démonstration d'[OSRM](https://project-osrm.org/) (à défaut, une estimation à vol d'oiseau) et les tuiles d'[OpenStreetMap](https://www.openstreetmap.org/copyright).
+
+## En production
+
+Deux tâches font vivre le projet sans intervention, et la page [Coulisses](site/suivi.html) du site en montre l'état :
+
+- **Contrôles de la collecte** (`carburants controler`, dans la [Collecte quotidienne](.github/workflows/collecte.yml)) : date de la photo, nombre de stations, part des prix du gazole de moins de 8 jours, prix médian plausible et sa variation depuis la veille, âge et taille du fichier des bornes, retard du Brent, couverture des enseignes. Le rapport est publié avec les données (`qualite/AAAA-MM-JJ.json` sur la branche `data`) ; un contrôle en erreur fait échouer la tâche après la publication.
+- **Suivi de la prévision** (`carburants suivi`, workflow [Suivi hebdomadaire](.github/workflows/suivi.yml), après le rechargement dominical de l'historique) : la série hebdomadaire du prix médian du gazole (`suivi/serie_gazole.parquet`), la prévision de la semaine suivante par le modèle retenu au notebook 05 (ridge sur les variations du Brent) et le journal des prévisions (`suivi/previsions.parquet`). Une prévision « en direct » n'est jamais réécrite ; au premier lancement, les semaines de l'année sont prévues après coup, chacune avec les données de l'époque, et marquées « rétrospectives ». Une alerte se déclenche si l'erreur des 12 dernières semaines dépasse le double de celle du notebook 05 depuis 2022.
 
 ## Licence
 

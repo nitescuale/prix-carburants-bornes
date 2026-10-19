@@ -16,6 +16,7 @@
       <a href="index.html" aria-current="page">Article</a>
       <a href="carte.html">Carte</a>
       <a href="trajet.html">Trajet</a>
+      <a href="suivi.html">Coulisses</a>
     </nav>
   </header>
 
@@ -66,7 +67,7 @@
         <li><b>Modélisation</b> : un gradient boosting interprétable (valeurs de Shapley) pour le prix de chaque station, et une prévision du prix national à une semaine.</li>
         <li><b>Volet électrique</b> : le réseau de recharge, les territoires mal desservis, le coût aux 100&nbsp;km.</li>
         <li><b>Restitution</b> : cet article, la carte et le simulateur de trajet.</li>
-        <li><b>Industrialisation</b> : tests, intégration continue et publication automatique du site après chaque collecte.</li>
+        <li><b>Industrialisation</b> : contrôles quotidiens de la qualité des données, suivi en direct de la prévision hebdomadaire, publication automatique du site ; tout se voit dans les <a href="suivi.html">coulisses</a>.</li>
       </ol>
 
       <h3>Les données</h3>
@@ -195,7 +196,7 @@
       </ul>
 
       <h3>Sous le capot</h3>
-      <p>Python (Polars, scikit-learn, LightGBM, SHAP, statsmodels), Parquet, H3 pour la géographie, Matplotlib pour les figures&nbsp;; un site statique (Leaflet, JavaScript sans framework) publié sur GitHub Pages. Une tâche GitHub Actions collecte les données chaque matin, puis reconstruit et republie le site. Des tests unitaires couvrent la collecte, le nettoyage et les calculs, et chaque chiffre cité dans un notebook y est vérifié par une assertion.</p>
+      <p>Python (Polars, scikit-learn, LightGBM, SHAP, statsmodels), Parquet, H3 pour la géographie, Matplotlib pour les figures&nbsp;; un site statique (Leaflet, JavaScript sans framework) publié sur GitHub Pages. Une tâche GitHub Actions collecte et contrôle les données chaque matin, puis reconstruit et republie le site ; chaque dimanche, une autre prévoit le prix de la semaine suivante et juge les prévisions passées (voir les <a href="suivi.html">coulisses</a>). Des tests unitaires couvrent la collecte, le nettoyage et les calculs, et chaque chiffre cité dans un notebook y est vérifié par une assertion.</p>
       <p class="liens">
         <a class="bouton" href="https://github.com/nitescuale/prix-carburants-bornes">Le code sur GitHub</a>
         <a class="bouton secondaire" href="https://github.com/nitescuale/prix-carburants-bornes/tree/main/notebooks">Les six notebooks</a>
