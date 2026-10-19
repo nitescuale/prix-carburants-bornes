@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import date
 from pathlib import Path
 
@@ -105,6 +106,52 @@ def construire_site(dossier: Path, sortie: Path) -> None:
           f"rapide, gazole médian {gazole} €/L -> {sortie}")
 
 
+def controler_collecte(dossier: Path) -> None:
+    from carburants import suivi
+
+    rapport = suivi.controler(dossier, date.today())
+    suivi.ecrire_json(rapport, dossier / "qualite" / f"{rapport['date']}.json")
+    texte = suivi.resume_markdown(rapport)
+    print(texte)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as resume:
+            resume.write(texte)
+    if rapport["statut"] == "erreur":
+        raise SystemExit("Au moins un contrôle est en erreur")
+
+
+def suivre_prevision(dossier: Path, historique: Path, complet: bool) -> None:
+    from carburants import suivi
+
+    cible = dossier / "suivi"
+    fichier_serie, fichier_journal = cible / "serie_gazole.parquet", cible / "previsions.parquet"
+    ancienne = None if complet or not fichier_serie.exists() else pl.read_parquet(fichier_serie)
+    disponibles = sorted(int(f.stem.removeprefix("prix_")) for f in historique.glob("prix_*.parquet"))
+    # Une année n'est recalculée qu'avec la précédente (prix de décembre prolongés en janvier), sauf la première
+    annees = [a for a in disponibles if a - 1 in disponibles or a == 2007 or ancienne is None and a == disponibles[0]]
+    serie = suivi.fusionner_serie(ancienne, suivi.serie_nationale(historique, annees))
+    journal = pl.read_parquet(fichier_journal) if fichier_journal.exists() and not complet else None
+    marches_ = pl.read_parquet(dossier / "marches" / "brent_change.parquet")
+    aujourd_hui = date.today()
+    journal = suivi.prevoir(serie, marches_, journal, aujourd_hui, retro_depuis=date(aujourd_hui.year, 1, 1))
+    cible.mkdir(parents=True, exist_ok=True)
+    serie.write_parquet(fichier_serie)
+    journal.write_parquet(fichier_journal)
+    evalue = suivi.evaluer(journal, serie)
+    bilan = suivi.bilan(evalue)
+    suivi.ecrire_json(bilan, cible / "bilan.json")
+    prochaine = journal.row(-1, named=True)
+    print(f"Série : {serie.height} semaines jusqu'au {serie['semaine'].max()} ; prévision pour la semaine du "
+          f"{prochaine['semaine']} : {prochaine['prevision']:.3f} €/L (dernier prix {prochaine['prix_base']:.3f}) ; "
+          f"erreur récente {bilan['erreur_recente']} c (persistance {bilan['erreur_persistance_recente']} c)")
+    if prochaine["faite_le"] != aujourd_hui:
+        print(f"::warning title=Prévision::Pas de prévision en direct : la série s'arrête au {serie['semaine'].max()}, "
+              "l'historique des prix est en retard.")
+    if bilan["derive"]:
+        print(f"::warning title=Prévision::En direct, la prévision se trompe de {bilan['erreur_directe']} c en moyenne, "
+              f"nettement plus que la persistance ({bilan['erreur_persistance_directe']} c) : le modèle est à revoir.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="carburants")
     parser.add_argument("--dossier", type=Path, default=Path("data"), help="dossier de sortie (défaut : data)")
@@ -120,6 +167,10 @@ def main() -> None:
     expl = sous.add_parser("explication", help="décomposer le prix de chaque station avec le modèle du notebook 05")
     expl.add_argument("--annee", type=int, default=2025)
     expl.add_argument("--sortie", type=Path, default=Path("rapports/explication_stations.json"))
+    sous.add_parser("controler", help="contrôler la collecte du jour (rapport dans qualite/)")
+    suivre = sous.add_parser("suivi", help="série hebdomadaire du gazole et prévision de la semaine suivante (suivi/)")
+    suivre.add_argument("--historique", type=Path, default=Path("data/historique"), help="fichiers prix_AAAA.parquet")
+    suivre.add_argument("--complet", action="store_true", help="recalculer toute la série et repartir d'un journal vide")
     page = sous.add_parser("site", help="assembler le site web (pages, figures et données du jour)")
     page.add_argument("--sortie", type=Path, default=Path("_site"), help="dossier du site (défaut : _site)")
     args = parser.parse_args()
@@ -136,6 +187,10 @@ def main() -> None:
         collecter_bulletin(args.dossier)
     elif args.commande == "explication":
         expliquer_stations(args.dossier, args.annee, args.sortie)
+    elif args.commande == "controler":
+        controler_collecte(args.dossier)
+    elif args.commande == "suivi":
+        suivre_prevision(args.dossier, args.historique, args.complet)
     elif args.commande == "site":
         construire_site(args.dossier, args.sortie)
     elif args.commande == "territoires":

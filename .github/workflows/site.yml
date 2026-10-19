@@ -1,12 +1,12 @@
 name: Site
 
 # Reconstruit le site (article, carte, simulateur de trajet) avec les données du jour et le publie sur GitHub Pages :
-# après chaque collecte réussie, et quand le site ou son code change sur main.
+# après chaque collecte et chaque suivi hebdomadaire, et quand le site ou son code change sur main.
 # Le site est construit dans tous les cas ; il n'est publié que si GitHub Pages est activé pour le dépôt
 # avec la source « GitHub Actions » (Settings > Pages).
 on:
   workflow_run:
-    workflows: ["Collecte quotidienne"]
+    workflows: ["Collecte quotidienne", "Suivi hebdomadaire"]
     types: [completed]
   push:
     branches: [main]
@@ -17,6 +17,7 @@ on:
       - "src/carburants/bornes.py"
       - "src/carburants/cli.py"
       - "pyproject.toml"
+      - "src/carburants/suivi.py"
       - ".github/workflows/site.yml"
   pull_request:
     paths:
@@ -26,6 +27,7 @@ on:
       - "src/carburants/bornes.py"
       - "src/carburants/cli.py"
       - "pyproject.toml"
+      - "src/carburants/suivi.py"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
@@ -40,7 +42,8 @@ concurrency:
 
 jobs:
   construire:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    # Après une collecte en échec aussi : la page des coulisses doit montrer le contrôle en erreur
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       pages: ${{ steps.pages.outputs.actif }}

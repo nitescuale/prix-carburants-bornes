@@ -16,6 +16,7 @@
       <a href="index.html" aria-current="page">Article</a>
       <a href="carte.html">Carte</a>
       <a href="trajet.html">Trajet</a>
+      <a href="suivi.html">Coulisses</a>
     </nav>
   </header>
 
@@ -66,7 +67,7 @@
         <li><b>Modélisation</b> : un gradient boosting interprétable (valeurs de Shapley) pour le prix de chaque station, et une prévision du prix national à une semaine.</li>
         <li><b>Volet électrique</b> : le réseau de recharge, les territoires mal desservis, le coût aux 100&nbsp;km.</li>
         <li><b>Restitution</b> : cet article, la carte et le simulateur de trajet.</li>
-        <li><b>Industrialisation</b> : tests, intégration continue et publication automatique du site après chaque collecte.</li>
+        <li><b>Industrialisation</b> : contrôles quotidiens de la qualité des données, suivi en direct de la prévision hebdomadaire, publication automatique du site ; tout se voit dans les <a href="suivi.html">coulisses</a>.</li>
       </ol>
 
       <h3>Les données</h3>
@@ -152,7 +153,7 @@
         <img src="figures/19_modele_station.png" alt="Décomposition de la prédiction pour une station" loading="lazy">
       </figure>
       <h3>Prévoir la semaine suivante</h3>
-      <p>Pour le prix national, le meilleur point de départ est le prix de la semaine en cours. Une régression sur le Brent des semaines passées fait mieux de 11&nbsp;% (7&nbsp;% depuis 2022, une différence significative au test de Diebold et Mariano)&nbsp;; mais pour deviner seulement le sens de la variation, une règle naïve, « comme la semaine dernière », reste imbattable (84&nbsp;% de bonnes réponses contre 79&nbsp;% pour la régression sur le Brent).</p>
+      <p>Pour le prix national, le meilleur point de départ est le prix de la semaine en cours. Une régression sur le Brent des semaines passées fait mieux de 11&nbsp;% (7&nbsp;% depuis 2022, une différence significative au test de Diebold et Mariano)&nbsp;; mais pour deviner seulement le sens de la variation, une règle naïve, « comme la semaine dernière », reste imbattable (84&nbsp;% de bonnes réponses contre 79&nbsp;% pour la régression sur le Brent). Ce gain suppose de connaître le cours du pétrole au jour le jour&nbsp;: avec le cours gratuit de FRED, publié une dizaine de jours plus tard, il disparaît, comme le montre le suivi en direct des <a href="suivi.html">coulisses</a>.</p>
       <figure>
         <img src="figures/20_prevision.png" alt="Erreur de prévision à une semaine selon le modèle" loading="lazy">
       </figure>
@@ -195,7 +196,7 @@
       </ul>
 
       <h3>Sous le capot</h3>
-      <p>Python (Polars, scikit-learn, LightGBM, SHAP, statsmodels), Parquet, H3 pour la géographie, Matplotlib pour les figures&nbsp;; un site statique (Leaflet, JavaScript sans framework) publié sur GitHub Pages. Une tâche GitHub Actions collecte les données chaque matin, puis reconstruit et republie le site. Des tests unitaires couvrent la collecte, le nettoyage et les calculs, et chaque chiffre cité dans un notebook y est vérifié par une assertion.</p>
+      <p>Python (Polars, scikit-learn, LightGBM, SHAP, statsmodels), Parquet, H3 pour la géographie, Matplotlib pour les figures&nbsp;; un site statique (Leaflet, JavaScript sans framework) publié sur GitHub Pages. Une tâche GitHub Actions collecte et contrôle les données chaque matin, puis reconstruit et republie le site ; chaque lundi, une autre prévoit le prix de la semaine qui commence et juge les prévisions passées (voir les <a href="suivi.html">coulisses</a>). Des tests unitaires couvrent la collecte, le nettoyage et les calculs, et chaque chiffre cité dans un notebook y est vérifié par une assertion.</p>
       <p class="liens">
         <a class="bouton" href="https://github.com/nitescuale/prix-carburants-bornes">Le code sur GitHub</a>
         <a class="bouton secondaire" href="https://github.com/nitescuale/prix-carburants-bornes/tree/main/notebooks">Les six notebooks</a>

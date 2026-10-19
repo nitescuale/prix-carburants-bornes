@@ -1,0 +1,85 @@
+name: Suivi hebdomadaire
+
+# Après chaque rechargement de l'historique (le lundi) : la série hebdomadaire du prix médian du gazole, la
+# prévision de la semaine qui commence et le journal des prévisions passées, publiés sur la branche data (dossier suivi/).
+# Au premier lancement, ou à la demande, toute la série est recalculée depuis 2007.
+on:
+  workflow_run:
+    workflows: ["Historique des prix"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      complet:
+        description: "Recalculer toute la série et repartir d'un journal vide"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Un groupe à part : un groupe partagé avec la collecte pourrait annuler une collecte en attente. Les deux tâches
+# publient sur la branche data et réessaient leur push si l'autre est passée entre-temps.
+concurrency:
+  group: suivi
+  cancel-in-progress: false
+
+jobs:
+  suivi:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install . "pandas>=2"
+
+      - name: Préparer la branche data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth 1 origin data
+          git worktree add -B data donnees origin/data
+
+      - name: Télécharger l'historique
+        id: historique
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMPLET: ${{ inputs.complet }}
+          DECLENCHEUR: ${{ github.event.workflow_run.event }}
+        run: |
+          mkdir historique
+          if [ "$COMPLET" = "true" ] || [ ! -f donnees/suivi/serie_gazole.parquet ]; then
+            gh release download historique --dir historique --pattern "prix_*.parquet"
+            echo "option=--complet" >> "$GITHUB_OUTPUT"
+          elif [ "$DECLENCHEUR" != "schedule" ]; then
+            # Historique rechargé à la main ou après un changement de la lecture des prix : toute la série est
+            # recalculée, mais le journal des prévisions est gardé
+            gh release download historique --dir historique --pattern "prix_*.parquet"
+          else
+            # Trois années pour en recalculer deux : la dernière semaine de l'an passé, complète seulement en janvier
+            annee=$(date -u +%Y)
+            for a in $((annee - 2)) $((annee - 1)) "$annee"; do
+              gh release download historique --dir historique --pattern "prix_${a}.parquet"
+            done
+          fi
+          ls -la historique
+
+      - name: Série, prévision et bilan
+        run: carburants --dossier donnees suivi --historique historique ${{ steps.historique.outputs.option }}
+
+      - name: Publier sur la branche data
+        working-directory: donnees
+        run: |
+          git add suivi
+          if git diff --cached --quiet; then
+            echo "Rien de nouveau"
+            exit 0
+          fi
+          git commit -m "Suivi de la prévision du $(date -u +%F)"
+          for essai in 1 2 3; do
+            git push origin data && exit 0
+            git pull --rebase origin data
+          done
+          exit 1

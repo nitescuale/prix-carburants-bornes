@@ -109,6 +109,12 @@ jobs:
             fi
           done
 
+      # Les données sont publiées même si un contrôle échoue (le rapport est publié avec elles) ; la tâche échoue ensuite
+      - name: Contrôler les données du jour
+        id: controle
+        continue-on-error: true
+        run: carburants --dossier donnees controler
+
       - name: Publier sur la branche data
         working-directory: donnees
         run: |
@@ -118,4 +124,15 @@ jobs:
             exit 0
           fi
           git commit -m "Collecte du $(date -u +%F)"
-          git push origin data
+          # Le suivi hebdomadaire publie aussi sur la branche data : en cas de course, on reprend ses commits
+          for essai in 1 2 3; do
+            git push origin data && exit 0
+            git pull --rebase origin data
+          done
+          exit 1
+
+      - name: Échouer si un contrôle est en erreur
+        if: steps.controle.outcome == 'failure'
+        run: |
+          echo "::error title=Contrôles::Au moins un contrôle des données est en erreur : voir le résumé de la tâche."
+          exit 1

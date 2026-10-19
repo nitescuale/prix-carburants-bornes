@@ -202,9 +202,46 @@ def donnees(dossier: Path, sortie: Path) -> dict:
     if (territoires / "prix_electricite.parquet").exists():
         electricite = pl.read_parquet(territoires / "prix_electricite.parquet")
 
+    tableau = tableau_de_bord(dossier)
+    if tableau is not None:
+        ecrire_json(tableau, sortie / "suivi.json")
+
     chiffres = resume(jour_prix, prix, points, jour_bornes, electricite, rapides.height)
     ecrire_json(chiffres, sortie / "resume.json")
     return chiffres
+
+
+def tableau_de_bord(dossier: Path, semaines: int = 104, jours: int = 90) -> dict | None:
+    """Le suivi du projet en production : la série hebdomadaire du gazole, le journal des prévisions confronté à la
+    réalité (`carburants suivi`) et l'historique des contrôles de la collecte (`carburants controler`)."""
+    from carburants import suivi
+
+    tableau = {}
+    dossier_suivi = dossier / "suivi"
+    if (dossier_suivi / "previsions.parquet").exists() and (dossier_suivi / "serie_gazole.parquet").exists():
+        serie = pl.read_parquet(dossier_suivi / "serie_gazole.parquet")
+        evalue = suivi.evaluer(pl.read_parquet(dossier_suivi / "previsions.parquet"), serie)
+        tableau["serie"] = colonnes(serie.tail(semaines).select("semaine", "prix"), {"prix": 3})
+        tableau["previsions"] = colonnes(
+            evalue.select("semaine", "prix_base", "prevision", "persistance", "reel", "mode", "faite_le"),
+            {"prix_base": 3, "prevision": 3, "persistance": 3, "reel": 3},
+        )
+        tableau["bilan"] = suivi.bilan(evalue)
+    rapports = sorted((dossier / "qualite").glob("*.json"))[-jours:]
+    if rapports:
+        historique = []
+        for fichier in rapports:
+            rapport = json.loads(fichier.read_text(encoding="utf-8"))
+            valeurs = {c["nom"]: c["valeur"] for c in rapport["controles"]}
+            historique.append({
+                "date": rapport["date"], "statut": rapport["statut"],
+                "stations": valeurs.get("Stations dans la photo"),
+                "part_recente": valeurs.get("Stations avec un prix du gazole récent (%)"),
+                "mediane": valeurs.get("Prix médian du gazole (€/L)"),
+            })
+        tableau["qualite"] = historique
+        tableau["dernier_controle"] = json.loads(rapports[-1].read_text(encoding="utf-8"))
+    return tableau or None
 
 
 def construire(dossier: Path, sortie: Path, source: Path = Path("site"), rapports: Path = Path("rapports")) -> dict:
