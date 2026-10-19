@@ -15,14 +15,19 @@ def url_fichier_consolide() -> str:
     """Trouve l'URL du CSV consolidé le plus récent via l'API data.gouv.fr."""
     reponse = requests.get(DATASET_API, timeout=TIMEOUT)
     reponse.raise_for_status()
+    # Le jeu publie aussi un CSV de documentation (rapport de consolidation) : on ne garde que les fichiers principaux,
+    # en préférant la consolidation « dernière version du schéma ».
     ressources = [
         r
         for r in reponse.json()["resources"]
-        if (r.get("format") or "").lower() == "csv" and "consolid" in (r.get("title") or "").lower()
+        if r.get("type") == "main" and (r.get("format") or "").lower() == "csv"
     ]
     if not ressources:
         raise ValueError("Aucun CSV consolidé trouvé dans le jeu de données IRVE")
-    ressources.sort(key=lambda r: r.get("last_modified") or "", reverse=True)
+    ressources.sort(
+        key=lambda r: ("dernière version" in (r.get("title") or "").lower(), r.get("last_modified") or ""),
+        reverse=True,
+    )
     return ressources[0]["url"]
 
 
