@@ -16,7 +16,6 @@ import numpy as np
 import polars as pl
 
 from carburants import analyse, transmission
-from carburants.modele import remise_fin_de_semaine
 from carburants.web import FRAICHEUR_JOURS, dernier
 
 ORDRE = {"ok": 0, "alerte": 1, "erreur": 2}
@@ -176,6 +175,8 @@ def _ridge():
 def prevoir_semaine(t, i: int) -> dict:
     """La prévision faite à la fin de la semaine de la ligne `i` pour la semaine suivante, avec un modèle estimé
     sur les seules semaines dont la variation suivante était connue à ce moment-là."""
+    from carburants.modele import remise_fin_de_semaine  # pandas, inutile aux contrôles quotidiens et au site
+
     passe = t.loc[: i - 1].dropna(subset=[*VARIABLES, "cible"])
     modele = _ridge().fit(passe[VARIABLES], passe["cible"])
     variation = float(modele.predict(t.loc[[i], VARIABLES])[0])
