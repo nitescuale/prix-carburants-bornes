@@ -1,0 +1,79 @@
+name: Site
+
+# Reconstruit le site (article, carte, simulateur de trajet) avec les données du jour et le publie sur GitHub Pages :
+# après chaque collecte réussie, et quand le site ou son code change sur main.
+# Le site est construit dans tous les cas ; il n'est publié que si GitHub Pages est activé pour le dépôt
+# (Settings > Pages > Source : GitHub Actions).
+on:
+  workflow_run:
+    workflows: ["Collecte quotidienne"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "rapports/**"
+      - "src/carburants/web.py"
+      - "src/carburants/bornes.py"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "src/carburants/web.py"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: site-${{ github.event_name == 'pull_request' && github.ref || 'pages' }}
+  cancel-in-progress: false
+
+jobs:
+  construire:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.pages.outputs.actif }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Données (branche data)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: donnees
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Construire le site
+        run: |
+          carburants --dossier donnees site --sortie _site
+          du -sh _site _site/donnees/* | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: GitHub Pages est-il activé ?
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null; then
+            echo "actif=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Site::GitHub Pages n'est pas activé : le site est construit mais pas publié."
+          fi
+
+  publier:
+    needs: construire
+    if: needs.construire.outputs.pages == 'true' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4

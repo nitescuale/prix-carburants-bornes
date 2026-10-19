@@ -9,7 +9,7 @@ from pathlib import Path
 
 import polars as pl
 
-from carburants import enseignes, irve, marches, prix, territoires
+from carburants import enseignes, irve, marches, prix, territoires, web
 
 
 def collecter_instantane(dossier: Path) -> None:
@@ -90,6 +90,21 @@ def collecter_territoires(dossier: Path) -> None:
     print(f"Voitures par type de recharge : {len(fichiers)} fichiers ({manifeste['jeu']}) -> {cible / 'vehicules'}")
 
 
+def expliquer_stations(dossier: Path, annee: int, sortie: Path) -> None:
+    from carburants import explication
+
+    resultat = explication.expliquer(explication.preparer(dossier, annee))
+    explication.ecrire(resultat, annee, sortie)
+    print(f"{resultat.height} stations expliquées ({annee}) -> {sortie}")
+
+
+def construire_site(dossier: Path, sortie: Path) -> None:
+    chiffres = web.construire(dossier, sortie)
+    gazole = chiffres["carburants"].get("Gazole", {}).get("mediane")
+    print(f"Site du {chiffres['date_prix']} : {chiffres['stations']} stations, {chiffres['sites_rapides']} sites de recharge "
+          f"rapide, gazole médian {gazole} €/L -> {sortie}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="carburants")
     parser.add_argument("--dossier", type=Path, default=Path("data"), help="dossier de sortie (défaut : data)")
@@ -102,6 +117,11 @@ def main() -> None:
     sous.add_parser("marches", help="cours du Brent et taux euro/dollar (FRED)")
     sous.add_parser("bulletin", help="historique du bulletin pétrolier européen (prix avec et sans taxes)")
     sous.add_parser("territoires", help="communes, voitures par type de recharge, prix de l'électricité")
+    expl = sous.add_parser("explication", help="décomposer le prix de chaque station avec le modèle du notebook 05")
+    expl.add_argument("--annee", type=int, default=2025)
+    expl.add_argument("--sortie", type=Path, default=Path("rapports/explication_stations.json"))
+    page = sous.add_parser("site", help="assembler le site web (pages, figures et données du jour)")
+    page.add_argument("--sortie", type=Path, default=Path("_site"), help="dossier du site (défaut : _site)")
     args = parser.parse_args()
 
     if args.commande == "instantane":
@@ -114,6 +134,10 @@ def main() -> None:
         collecter_marches(args.dossier)
     elif args.commande == "bulletin":
         collecter_bulletin(args.dossier)
+    elif args.commande == "explication":
+        expliquer_stations(args.dossier, args.annee, args.sortie)
+    elif args.commande == "site":
+        construire_site(args.dossier, args.sortie)
     elif args.commande == "territoires":
         collecter_territoires(args.dossier)
     else:

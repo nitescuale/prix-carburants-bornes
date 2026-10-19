@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Faire le plein ou recharger ?</title>
+  <meta name="description" content="Un projet de data science sur données publiques : vingt ans de prix des carburants, l'effet de l'enseigne et du pétrole, un modèle de prix par station, et ce que coûte vraiment la recharge d'une voiture électrique.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/article.css">
+</head>
+<body>
+  <header class="entete">
+    <a class="marque" href="index.html"><span class="pastilles"><i style="background:var(--orange)"></i><i style="background:var(--violet)"></i></span><span class="titre">Faire le plein ou recharger ?</span></a>
+    <nav>
+      <a href="index.html" aria-current="page">Article</a>
+      <a href="carte.html">Carte</a>
+      <a href="trajet.html">Trajet</a>
+    </nav>
+  </header>
+
+  <main class="article">
+    <section class="ouverture">
+      <p class="etiquette">Projet de data science · données publiques françaises</p>
+      <h1>Faire le plein ou recharger&nbsp;?</h1>
+      <p class="chapeau">Vingt ans de prix à la pompe, 10&nbsp;000 stations-service et 133&nbsp;000 points de charge&nbsp;: ce que disent les données publiques du prix des carburants, de ce qui le fait varier d'une station à l'autre, et de ce que coûte vraiment la recharge d'une voiture électrique. Avec une carte et un simulateur de trajet mis à jour chaque matin.</p>
+
+      <div class="aujourdhui" id="aujourdhui">
+        <div class="aujourdhui-tete">
+          <span class="etiquette">Aujourd'hui</span>
+          <span class="tres-petit discret" id="date-du-jour">prix du jour</span>
+        </div>
+        <div class="tuiles">
+          <div class="tuile"><span class="tuile-libelle">Gazole, prix médian</span><span class="tuile-valeur" data-chiffre="gazole">–</span><span class="tuile-note" data-chiffre="gazole-plage"></span></div>
+          <div class="tuile"><span class="tuile-libelle">SP95-E10, prix médian</span><span class="tuile-valeur" data-chiffre="e10">–</span><span class="tuile-note" data-chiffre="e10-plage"></span></div>
+          <div class="tuile"><span class="tuile-libelle">100 km au gazole</span><span class="tuile-valeur orange" data-chiffre="cout-gazole">–</span><span class="tuile-note">5,5 litres</span></div>
+          <div class="tuile"><span class="tuile-libelle">100 km rechargés à domicile</span><span class="tuile-valeur violet" data-chiffre="cout-domicile">–</span><span class="tuile-note" data-chiffre="domicile-prix">18 kWh</span></div>
+          <div class="tuile"><span class="tuile-libelle">100 km sur borne ultra-rapide</span><span class="tuile-valeur violet" data-chiffre="cout-ultra">–</span><span class="tuile-note" data-chiffre="ultra-prix">18 kWh</span></div>
+        </div>
+        <div class="actions">
+          <a class="bouton" href="carte.html">Ouvrir la carte des prix</a>
+          <a class="bouton secondaire" href="trajet.html">Simuler un trajet</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="en-bref">
+      <h2>En bref</h2>
+      <ul>
+        <li><b>2026 est une année record</b> : le gazole a atteint 2,42&nbsp;€ le litre à la mi-septembre, au-dessus du pic de 2022. Le pétrole n'explique qu'une petite part de la hausse&nbsp;: l'écart entre le baril et la pompe a triplé depuis 2021.</li>
+        <li><b>Le gazole monte en fusée et redescend en plume</b>&nbsp;: de 2005 à 2021, pour 10 centimes de Brent, il gagnait 11,4 centimes en une semaine à la hausse mais n'en rendait que 7,2 à la baisse.</li>
+        <li><b>L'enseigne fait le prix</b>&nbsp;: une station TotalEnergies classique vend le gazole 10 centimes plus cher qu'une grande surface du même département. La concurrence locale pèse huit fois moins.</li>
+        <li><b>Un modèle prédit le prix d'une station à 2,4 centimes près</b>, presque aussi bien dans un département qu'il n'a jamais vu.</li>
+        <li><b>Recharger chez soi coûte environ un tiers du gazole</b> aux prix d'octobre 2026 (4,5&nbsp;€ contre 13&nbsp;€ aux 100&nbsp;km), plutôt la moitié en 2024 et 2025. Sur borne ultra-rapide, l'avantage dépend du prix du gazole.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><span class="numero">1</span>La démarche</h2>
+      <p>Le projet suit le chemin complet d'une étude de données, de la question à une application qui se met à jour seule. Chaque étape a son notebook, publié avec le code&nbsp;; chaque chiffre de cet article en vient et y est vérifié automatiquement.</p>
+      <ol class="etapes">
+        <li><b>Cadrage</b> : une question simple, « faire le plein ou recharger&nbsp;? », et les données publiques qui permettent d'y répondre.</li>
+        <li><b>Collecte</b> : un paquet Python et une tâche GitHub Actions qui photographient chaque matin les prix de toutes les stations, chaque semaine les bornes, et rangent tout en Parquet sur une branche dédiée.</li>
+        <li><b>Exploration</b> : la qualité des données (prix périmés, doublons, puissances en watts, communes manquantes) et leurs premiers enseignements.</li>
+        <li><b>Économie</b> : vingt ans d'historique, la transmission du prix du pétrole, l'effet de l'enseigne et de la concurrence.</li>
+        <li><b>Modélisation</b> : un gradient boosting interprétable (valeurs de Shapley) pour le prix de chaque station, et une prévision du prix national à une semaine.</li>
+        <li><b>Volet électrique</b> : le réseau de recharge, les territoires mal desservis, le coût aux 100&nbsp;km.</li>
+        <li><b>Restitution</b> : cet article, la carte et le simulateur de trajet.</li>
+        <li><b>Industrialisation</b> : tests, intégration continue et publication automatique du site après chaque collecte.</li>
+      </ol>
+
+      <h3>Les données</h3>
+      <div class="tableau-defilant">
+        <table class="sources">
+          <thead><tr><th>Source</th><th>Contenu</th><th>Collecte</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://www.prix-carburants.gouv.fr/rubrique/opendata/">Prix des carburants</a> (ministère de l'Économie)</td><td>Prix déclarés par chaque station : flux du jour et historique depuis 2007 (64 millions de changements de prix)</td><td>Quotidienne</td></tr>
+            <tr><td><a href="https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/">Bornes de recharge IRVE</a> (data.gouv.fr)</td><td>Fichier consolidé des points de charge : position, puissance, opérateur, tarif</td><td>Hebdomadaire</td></tr>
+            <tr><td><a href="https://www.openstreetmap.org/">OpenStreetMap</a></td><td>Enseigne des stations-service (81 % des stations appariées)</td><td>Hebdomadaire</td></tr>
+            <tr><td><a href="https://fred.stlouisfed.org/">FRED</a> (Réserve fédérale de Saint-Louis)</td><td>Cours du Brent et taux de change euro-dollar</td><td>Quotidienne</td></tr>
+            <tr><td><a href="https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en">Bulletin pétrolier</a> (Commission européenne)</td><td>Prix moyens avec et sans taxes</td><td>Hebdomadaire</td></tr>
+            <tr><td><a href="https://geo.api.gouv.fr/">API Géo</a>, <a href="https://www.data.gouv.fr/fr/datasets/voitures-particulieres-immatriculees-par-commune-et-par-type-de-recharge/">Agence ORE</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_204/default/table">Eurostat</a></td><td>Communes et population ; voitures électriques par commune ; prix de l'électricité des ménages</td><td>Hebdomadaire</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="numero">2</span>Vingt ans de prix à la pompe</h2>
+      <p>Le gazole est passé d'environ 1,10&nbsp;€ le litre en moyenne en 2007 à 1,86&nbsp;€ en 2022, puis 2,07&nbsp;€ de janvier à la mi-octobre 2026. Les grandes secousses se lisent directement&nbsp;: le pic de 2008 et la chute qui suit, le point bas de fin 2015, le creux du confinement, la flambée de 2022. <b>2026 bat les records</b>&nbsp;: 60 centimes de hausse en cinq semaines au printemps, puis 2,42&nbsp;€ à la mi-septembre, au-dessus du pic de 2022 (2,17&nbsp;€).</p>
+      <figure>
+        <img src="figures/06_vingt_ans_de_prix.png" alt="Prix médian hebdomadaire du gazole et de l'essence de 2007 à 2026" loading="lazy">
+        <figcaption>Prix médian hebdomadaire des stations, en euros courants. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/02_historique.ipynb">Notebook 02</a>.</figcaption>
+      </figure>
+      <p><b>Le gazole a perdu son avantage.</b> De 2009 à 2016, il coûtait 17 à 23 centimes de moins que le SP95&nbsp;; l'alignement progressif de sa fiscalité, de 2015 à 2018, se voit en marches d'escalier chaque mois de janvier. Lors des crises de 2022 et de 2026, il passe au-dessus de l'essence (jusqu'à 26 centimes de plus au printemps 2026).</p>
+      <figure>
+        <img src="figures/07_ecart_gazole_essence.png" alt="Écart entre le prix du gazole et celui du SP95 depuis 2007" loading="lazy">
+      </figure>
+      <p>La géographie des prix est stable en temps normal&nbsp;: la façade atlantique est la moins chère, Paris, la petite couronne, la Corse et la Côte d'Azur les plus chères. Pendant les crises, les écarts se resserrent. Le jour du plein, lui, ne compte presque pas&nbsp;: 0,3 centime entre le mercredi et le vendredi, quarante à quatre-vingts fois moins que le choix de la station.</p>
+      <figure>
+        <img src="figures/09_departements.png" alt="Écart de prix du gazole par département" loading="lazy">
+      </figure>
+      <p class="aparte">Une curiosité des données&nbsp;: en 2026, 93&nbsp;% des stations TotalEnergies affichent le gazole au même prix rond, 2,25&nbsp;€, un plafonnement commercial de l'enseigne qui déforme les statistiques nationales. C'est le premier indice que l'enseigne compte beaucoup.</p>
+    </section>
+
+    <section>
+      <h2><span class="numero">3</span>Le pétrole, les taxes et la marge</h2>
+      <p>En 2026, le Brent ne représente que <b>25&nbsp;%</b> du prix du gazole, contre 39&nbsp;% en 2012 pour un baril comparable en euros. Les taxes en font 46&nbsp;%. Entre 2025 et 2026, le gazole a pris 42 centimes&nbsp;: 12 viennent du Brent, 7 des taxes (la TVA suit le prix) et 23 de l'écart entre le brut et la pompe, qui couvre le raffinage, le transport et la distribution.</p>
+      <figure>
+        <img src="figures/11_decomposition_gazole.png" alt="Décomposition du prix du gazole entre Brent, marge et taxes" loading="lazy">
+        <figcaption>Bulletin pétrolier européen et cours du Brent, la remise de l'État de 2022 réintégrée. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/03_fusee_et_plume.ipynb">Notebook 03</a>.</figcaption>
+      </figure>
+      <p>Cet écart, la <b>marge brute</b> de la filière, a changé de palier&nbsp;: environ 18 centimes par litre de gazole de 2005 à 2021, 37 de 2023 à 2025, 58 en 2026, avec une pointe à 75 centimes à la fin de l'été.</p>
+      <figure>
+        <img src="figures/12_marge_brute.png" alt="Écart entre le Brent et le prix hors taxes du gazole et du SP95" loading="lazy">
+      </figure>
+      <h3>Fusée et plume</h3>
+      <p>Les prix montent-ils plus vite qu'ils ne baissent&nbsp;? Un modèle à correction d'erreur, estimé séparément pour les hausses et les baisses du Brent, répond oui pour le gazole&nbsp;: sur 2005-2021, pour 10 centimes de Brent, le gazole hors taxes a pris <b>11,4 centimes</b> une semaine plus tard à la hausse, mais n'en a rendu que <b>7,2</b> à la baisse. L'écart se résorbe lentement (demi-vie d'environ neuf semaines). Pour l'essence, rien de détectable.</p>
+      <figure>
+        <img src="figures/13_fusee_et_plume.png" alt="Réponse cumulée du prix hors taxes à une hausse et à une baisse du Brent" loading="lazy">
+      </figure>
+      <p>La crise de 2026 raconte une histoire un peu différente&nbsp;: du début mars à la mi-avril, le Brent prend 29 centimes par litre et le gazole hors taxes 51&nbsp;; quand le Brent rend tout, le gazole ne rend que 38. Plus qu'une asymétrie classique, 2026 est un <b>changement de niveau</b> de la marge, qui absorbe ensuite une partie des chocs dans les deux sens.</p>
+      <figure>
+        <img src="figures/14_crise_2026.png" alt="Brent, prix hors taxes et marge brute du gazole pendant la crise de 2026" loading="lazy">
+      </figure>
+    </section>
+
+    <section>
+      <h2><span class="numero">4</span>L'enseigne avant la concurrence</h2>
+      <p>D'une station à l'autre, à quoi tient le prix&nbsp;? Une régression sur près de 9&nbsp;000 stations, à département égal, isole les effets. En 2025, une station <b>TotalEnergies</b> classique vend le gazole <b>9,8 centimes</b> plus cher qu'une grande surface, un autre pétrolier 7,1 centimes plus cher. Les stations <b>Total Access</b>, le format à bas prix du groupe, ne sont que 1,9 centime au-dessus des grandes surfaces.</p>
+      <figure>
+        <img src="figures/15_enseigne_et_concurrence.png" alt="Écart de prix selon l'enseigne et le nombre de concurrents" loading="lazy">
+        <figcaption>Enseignes appariées à OpenStreetMap ; concurrents comptés à moins de 5 km. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/04_concurrence.ipynb">Notebook 04</a>.</figcaption>
+      </figure>
+      <p>La concurrence locale joue, mais beaucoup moins&nbsp;: entre une station peu entourée (une concurrente à moins de 5&nbsp;km) et une station très entourée (17 concurrentes), l'écart n'est que de 1,2 centime. L'ouverture d'une grande surface fait baisser les prix de ses voisines d'environ 0,3 centime, un peu plus à moins d'un kilomètre, et un test placebo (une fausse date d'ouverture, un an plus tôt) confirme que l'effet n'est pas un artefact.</p>
+      <figure>
+        <img src="figures/16_ouvertures.png" alt="Prix des stations voisines avant et après l'ouverture d'une grande surface" loading="lazy">
+      </figure>
+      <p class="aparte">Pour l'automobiliste, la leçon est simple&nbsp;: choisir sa station, et surtout son enseigne, rapporte bien plus que d'attendre le bon jour ou de chercher le quartier le plus concurrentiel. C'est ce que fait la <a href="carte.html">carte</a>&nbsp;: elle montre les stations les moins chères autour de n'importe quel point.</p>
+    </section>
+
+    <section>
+      <h2><span class="numero">5</span>Un modèle pour chaque station</h2>
+      <p>Un gradient boosting (LightGBM) prédit l'écart de prix moyen de chaque station au prix médian national à partir d'une trentaine de caractéristiques&nbsp;: enseigne, autoroute, position, services, carburants vendus, concurrents, ancienneté. Il se trompe en moyenne de <b>2,4 centimes</b> (R² de 0,75), 16&nbsp;% de moins qu'une régression linéaire, et presque aussi peu sur des départements qu'il n'a jamais vus (2,6 centimes). Une région entière jamais vue se prédit moins bien&nbsp;: l'Île-de-France a son propre niveau de prix.</p>
+      <p>Les valeurs de Shapley décomposent chaque prédiction en contributions qui s'additionnent. Regroupées par famille, elles confirment l'analyse économique&nbsp;: <b>l'enseigne pèse le plus</b> (2,7 centimes en moyenne, 38&nbsp;% du total), devant l'autoroute et les services. La concurrence pèse peu&nbsp;; ses variables servent surtout à repérer le cœur de l'agglomération parisienne.</p>
+      <figure>
+        <img src="figures/17_modele_importance.png" alt="Importance des familles de caractéristiques dans le modèle" loading="lazy">
+        <figcaption>Valeur absolue moyenne de la contribution de chaque famille, en centimes. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/05_modele.ipynb">Notebook 05</a>.</figcaption>
+      </figure>
+      <p>La même décomposition explique une station isolée&nbsp;: c'est le « Pourquoi ce prix&nbsp;? » de la <a href="carte.html">carte</a>, calculé pour plus de 9&nbsp;000 stations par un modèle qui ne les avait pas vues.</p>
+      <figure>
+        <img src="figures/19_modele_station.png" alt="Décomposition de la prédiction pour une station" loading="lazy">
+      </figure>
+      <h3>Prévoir la semaine suivante</h3>
+      <p>Pour le prix national, le meilleur point de départ est le prix de la semaine en cours. Une régression sur le Brent des semaines passées fait mieux de 11&nbsp;% (7&nbsp;% depuis 2022, une différence significative au test de Diebold et Mariano)&nbsp;; mais pour deviner seulement le sens de la variation, une règle naïve, « comme la semaine dernière », reste imbattable (84&nbsp;% de bonnes réponses contre 80&nbsp;%).</p>
+      <figure>
+        <img src="figures/20_prevision.png" alt="Erreur de prévision à une semaine selon le modèle" loading="lazy">
+      </figure>
+    </section>
+
+    <section>
+      <h2><span class="numero">6</span>Et la voiture électrique&nbsp;?</h2>
+      <p>Après nettoyage (doublons entre opérateurs et plateformes d'agrégation, puissances en watts, accès réservés), la métropole compte <b>132&nbsp;901 points de charge publics</b>, surtout des bornes de 22&nbsp;kW ou moins. La recharge rapide (50&nbsp;kW et plus) en représente un quart, sur <b>7&nbsp;388 sites</b>&nbsp;: environ quatre pour cinq stations-service. En face, le parc de voitures rechargeables a été multiplié par 6,6 depuis fin 2020, à 2,7 millions&nbsp;: 20 voitures par point de charge public, 79 par point rapide.</p>
+      <figure>
+        <img src="figures/21_bornes_reseau.png" alt="Points de charge par puissance et parc de voitures rechargeables" loading="lazy">
+        <figcaption>Fichier consolidé IRVE et voitures particulières par type de recharge (Agence ORE). <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/06_bornes.ipynb">Notebook 06</a>.</figcaption>
+      </figure>
+      <p><b>Les bornes ne suivent guère les voitures.</b> D'un département à l'autre, le nombre de points par habitant et le nombre de voitures rechargeables par habitant sont presque sans rapport (corrélation de 0,07). Les mieux équipés sont des départements plutôt ruraux (Hautes-Alpes, Vienne, Tarn)&nbsp;; la Seine-Saint-Denis, très dense, est parmi les moins équipés.</p>
+      <figure>
+        <img src="figures/22_bornes_departements.png" alt="Points de charge et voitures rechargeables par habitant, par département" loading="lazy">
+      </figure>
+      <p>Dans les villes, la recharge rapide est déjà presque aussi proche que la pompe&nbsp;: la moitié des habitants vit à moins de 1,6&nbsp;km de l'une, à moins de 1,2&nbsp;km de l'autre. L'écart se creuse dans les campagnes&nbsp;: <b>5,7&nbsp;% des habitants</b> (3,7 millions) vivent à plus de 10&nbsp;km d'une recharge rapide, contre 1,1&nbsp;% pour une station-service.</p>
+      <figure>
+        <img src="figures/23_bornes_deserts.png" alt="Carte des zones à plus de 10 km d'une recharge rapide" loading="lazy">
+      </figure>
+      <h3>Ce que coûtent 100 kilomètres</h3>
+      <p>Avec des consommations moyennes (5,5 litres de gazole, 18&nbsp;kWh), 100&nbsp;km coûtaient mi-octobre 2026 <b>13,04&nbsp;€</b> au gazole et <b>4,47&nbsp;€</b> en rechargeant à domicile au prix de référence des ménages. Sur borne publique, aux tarifs médians lus dans les déclarations des opérateurs, il faut compter 7,20&nbsp;€ sur une borne de 7,4 à 22&nbsp;kW, 8,82&nbsp;€ en recharge rapide et 9,90&nbsp;€ en ultra-rapide.</p>
+      <figure>
+        <img src="figures/24_cout_100km.png" alt="Coût de l'énergie pour 100 km selon le mode, et son évolution depuis 2007" loading="lazy">
+      </figure>
+      <p>Ce rapport d'environ un à trois tient à la flambée du gazole de 2026&nbsp;: en 2024 et 2025, recharger chez soi coûtait plutôt la moitié du gazole. Et l'ultra-rapide n'est moins cher que le gazole que lorsque celui-ci est cher&nbsp;: au prix moyen de 2025 (1,62&nbsp;€ le litre), le seuil tombait à 0,49&nbsp;€ le kWh, sous le tarif médian des bornes ultra-rapides (0,55&nbsp;€).</p>
+    </section>
+
+    <section class="conclusion">
+      <h2>Alors, faire le plein ou recharger&nbsp;?</h2>
+      <p>Pour qui peut recharger chez soi, l'électrique coûte nettement moins cher à l'usage, d'un tiers à la moitié du gazole selon les années. Sur la route, l'avantage fond&nbsp;: la recharge rapide coûte environ deux fois plus que la prise de la maison, et le réseau, dense en ville, laisse encore des campagnes à plus de dix kilomètres d'une borne rapide. Côté thermique, le levier le plus simple reste le choix de la station&nbsp;: une grande surface ou une station à bas prix plutôt qu'une station pétrolière classique, et pas l'autoroute quand on peut l'éviter.</p>
+      <p>Le <a href="trajet.html">simulateur</a> refait ce calcul pour n'importe quel trajet, avec les prix du jour des stations et des bornes qui sont sur la route.</p>
+
+      <h3>Limites</h3>
+      <ul>
+        <li>Les prix sont déclarés par les stations&nbsp;: environ un quart ne sont pas à jour depuis plus d'une semaine, et la carte ne montre que ceux de moins de huit jours.</li>
+        <li>Les coûts aux 100&nbsp;km ne comptent que l'énergie, avec des consommations moyennes&nbsp;; le prix de l'électricité à domicile inclut la part fixe de la facture, et les tarifs publics lisibles ne couvrent qu'une partie des bornes (sans abonnements ni frais à la minute).</li>
+        <li>Les enseignes viennent d'OpenStreetMap (2026)&nbsp;: près d'une station sur quatre n'en a pas en 2025, et les stations disparues avant 2026 n'en ont jamais.</li>
+        <li>Les effets mesurés sont des associations, à caractéristiques égales&nbsp;; seule l'analyse des ouvertures de grandes surfaces s'approche d'un effet causal.</li>
+      </ul>
+
+      <h3>Sous le capot</h3>
+      <p>Python (Polars, scikit-learn, LightGBM, SHAP, statsmodels), Parquet, H3 pour la géographie, Matplotlib pour les figures&nbsp;; un site statique (Leaflet, JavaScript sans framework) publié sur GitHub Pages. Une tâche GitHub Actions collecte les données chaque matin, puis reconstruit et republie le site. Des tests unitaires couvrent la collecte, le nettoyage et les calculs, et chaque chiffre cité dans un notebook y est vérifié par une assertion.</p>
+      <p class="liens">
+        <a class="bouton" href="https://github.com/nitescuale/prix-carburants-bornes">Le code sur GitHub</a>
+        <a class="bouton secondaire" href="https://github.com/nitescuale/prix-carburants-bornes/tree/main/notebooks">Les six notebooks</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <p>Données publiques sous Licence Ouverte (Etalab) et ODbL (OpenStreetMap). Code sous licence MIT. Analyse arrêtée au 19 octobre 2026 ; les chiffres « Aujourd'hui », la carte et le simulateur sont mis à jour chaque jour.</p>
+  </footer>
+
+  <script src="js/commun.js"></script>
+  <script src="js/article.js"></script>
+</body>
+</html>

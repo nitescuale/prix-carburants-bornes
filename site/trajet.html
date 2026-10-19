@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulateur de trajet</title>
+  <meta name="description" content="Combien coûte un trajet en voiture thermique ou électrique, avec les prix du jour des stations et des bornes de recharge rapide le long de la route.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-appli">
+  <header class="entete">
+    <a class="marque" href="index.html"><span class="pastilles"><i style="background:var(--orange)"></i><i style="background:var(--violet)"></i></span><span class="titre">Faire le plein ou recharger ?</span></a>
+    <nav>
+      <a href="index.html">Article</a>
+      <a href="carte.html">Carte</a>
+      <a href="trajet.html" aria-current="page">Trajet</a>
+    </nav>
+  </header>
+
+  <main class="appli">
+    <aside class="panneau">
+      <div>
+        <h1>Simule ton trajet</h1>
+        <p class="discret petit" id="sous-titre">Le coût de l'énergie d'un trajet, au prix du jour des stations et des bornes rapides qui sont sur la route.</p>
+      </div>
+
+      <form id="formulaire" class="formulaire">
+        <div class="champs-ligne">
+          <div>
+            <label for="depart">Départ</label>
+            <input id="depart" type="text" value="Paris (75)" required>
+          </div>
+          <div>
+            <label for="arrivee">Arrivée</label>
+            <input id="arrivee" type="text" value="Lyon (69)" required>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend><i class="pastille" style="background:var(--orange)"></i> Voiture thermique</legend>
+          <div class="champs-ligne">
+            <div>
+              <label for="carburant">Carburant</label>
+              <select id="carburant"></select>
+            </div>
+            <div>
+              <label for="conso-thermique">Litres aux 100 km</label>
+              <input id="conso-thermique" type="number" min="2" max="20" step="0.1" value="5.5">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><i class="pastille" style="background:var(--violet)"></i> Voiture électrique</legend>
+          <div class="champs-ligne">
+            <div>
+              <label for="conso-electrique">kWh aux 100 km</label>
+              <input id="conso-electrique" type="number" min="8" max="40" step="0.5" value="18">
+            </div>
+            <div>
+              <label for="batterie">Batterie utile (kWh)</label>
+              <input id="batterie" type="number" min="15" max="150" step="1" value="60">
+            </div>
+            <div>
+              <label for="charge-depart">Charge au départ (%)</label>
+              <input id="charge-depart" type="number" min="20" max="100" step="5" value="90">
+            </div>
+            <div>
+              <label for="prix-domicile">Domicile (€/kWh)</label>
+              <input id="prix-domicile" type="number" min="0" max="1" step="0.001" value="0.25">
+            </div>
+          </div>
+          <label for="reseau" style="margin-top:12px">Recharges sur la route</label>
+          <select id="reseau">
+            <option value="50">Bornes rapides (50 kW et plus)</option>
+            <option value="150">Ultra-rapides seulement (150 kW et plus)</option>
+          </select>
+        </fieldset>
+
+        <button class="bouton plein" type="submit" id="calculer">Calculer</button>
+      </form>
+
+      <section id="resultat" aria-live="polite"></section>
+
+      <p class="tres-petit discret">Itinéraire calculé par <a href="https://project-osrm.org/">OSRM</a> à partir d'OpenStreetMap (à défaut, une estimation à vol d'oiseau). Stations et bornes retenues à moins de 2 km de la route. Coût de l'énergie seule : ni péages, ni abonnements de recharge, ni frais de stationnement.</p>
+    </aside>
+    <div id="carte" role="region" aria-label="Carte du trajet"></div>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/commun.js"></script>
+  <script src="js/trajet.js"></script>
+</body>
+</html>
