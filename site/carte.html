@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carte des prix</title>
+  <meta name="description" content="Le prix des carburants dans chaque station de France métropolitaine et les sites de recharge rapide, mis à jour chaque jour.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-appli">
+  <header class="entete">
+    <a class="marque" href="index.html"><span class="pastilles"><i style="background:var(--orange)"></i><i style="background:var(--violet)"></i></span><span class="titre">Faire le plein ou recharger ?</span></a>
+    <nav>
+      <a href="index.html">Article</a>
+      <a href="carte.html" aria-current="page">Carte</a>
+      <a href="trajet.html">Trajet</a>
+    </nav>
+  </header>
+
+  <main class="appli">
+    <aside class="panneau">
+      <div>
+        <h1>La carte des prix</h1>
+        <p class="discret petit" id="sous-titre">Chargement des prix du jour…</p>
+      </div>
+
+      <div class="champs-ligne">
+        <div>
+          <label for="carburant">Carburant</label>
+          <select id="carburant"></select>
+        </div>
+        <div>
+          <label for="rayon">Rayon autour d'un point</label>
+          <select id="rayon">
+            <option value="5">5 km</option>
+            <option value="10" selected>10 km</option>
+            <option value="20">20 km</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div id="legende" class="legende"></div>
+        <label class="case"><input type="checkbox" id="bornes" checked> <span><i class="point-violet"></i> Sites de recharge rapide (50 kW et plus)</span></label>
+      </div>
+
+      <div>
+        <label for="recherche">Aller à une commune</label>
+        <input id="recherche" type="text" placeholder="Ex. Clermont-Ferrand">
+        <button id="localiser" class="bouton secondaire plein" type="button">Autour de moi</button>
+      </div>
+
+      <section id="autour" class="carte-info" aria-live="polite">
+        <p class="discret petit" style="margin:0">Touchez la carte, cherchez une commune ou utilisez votre position : vous verrez ici les stations les moins chères du rayon choisi et la recharge rapide la plus proche.</p>
+      </section>
+
+      <p class="tres-petit discret">Prix déclarés par les stations sur <a href="https://www.prix-carburants.gouv.fr/">prix-carburants.gouv.fr</a> (seuls ceux de moins de 8 jours sont montrés) ; bornes du <a href="https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/">fichier consolidé IRVE</a>. Pour chaque station, « Pourquoi ce prix ? » décompose la prévision du <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/05_modele.ipynb">modèle de prix</a> entraîné sur 2025.</p>
+    </aside>
+    <div id="carte" role="region" aria-label="Carte des stations"></div>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/commun.js"></script>
+  <script src="js/carte.js"></script>
+</body>
+</html>

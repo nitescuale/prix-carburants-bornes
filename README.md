@@ -2,8 +2,11 @@
 
 [![Tests](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/ci.yml/badge.svg)](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/ci.yml)
 [![Collecte quotidienne](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/collecte.yml/badge.svg)](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/collecte.yml)
+[![Site](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/site.yml/badge.svg)](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/site.yml)
 
 Projet de data science de bout en bout sur les données publiques françaises : prix des carburants à la pompe et bornes de recharge pour véhicules électriques.
+
+Le résultat se lit sur le site du projet, [nitescuale.github.io/prix-carburants-bornes](https://nitescuale.github.io/prix-carburants-bornes/) : un article qui rassemble les six notebooks, une carte des prix du jour et des bornes rapides, et un simulateur de trajet thermique ou électrique.
 
 ## Données
 
@@ -102,6 +105,25 @@ Le notebook 02 lit l'historique de la release (`gh release download historique -
 Le notebook 03 lit aussi les cours du Brent et le bulletin pétrolier européen sur la branche `data` (`data/marches/`) ; il demande `statsmodels` et `openpyxl` (extra `analyse`). Le notebook 04 lit l'historique et le relevé des enseignes OpenStreetMap (`data/enseignes/`).
 
 Les graphiques exportés pour le site sont dans [`rapports/figures`](rapports/figures).
+
+## Site
+
+Le dossier [`site/`](site) contient un site statique, sans serveur : l'article (`index.html`), la carte (`carte.html`) et le simulateur de trajet (`trajet.html`), en HTML, CSS et JavaScript, avec [Leaflet](https://leafletjs.com/) copié dans `site/vendor`. `carburants site` l'assemble avec les figures des notebooks et les données du jour, écrites en JSON par `carburants.web` :
+
+| Fichier | Contenu |
+|---|---|
+| `donnees/stations.json` | Chaque station de métropole avec ses prix de moins de 8 jours, son adresse et son enseigne |
+| `donnees/recharge.json` | Les sites de recharge rapide (50 kW et plus, stations à moins de 150 m regroupées) : opérateurs, puissance, points de charge, tarif lisible |
+| `donnees/resume.json` | Prix médians du jour, tarifs de l'électricité (domicile et bornes, médiane des opérateurs) et coût de l'énergie aux 100 km |
+| `donnees/communes.json` | Les communes de métropole et leur centre, pour la recherche et le trajet |
+| `donnees/explication.json` | La décomposition du prix de chaque station par le modèle du notebook 05 (copie de `rapports/explication_stations.json`) |
+
+```bash
+carburants --dossier data site --sortie _site    # puis : python -m http.server -d _site
+carburants --dossier data explication --annee 2025   # recalcule rapports/explication_stations.json (extra analyse et historique)
+```
+
+Le workflow [Site](.github/workflows/site.yml) reconstruit le site après chaque collecte et le publie sur GitHub Pages. Le trajet utilise le serveur de démonstration d'[OSRM](https://project-osrm.org/) (à défaut, une estimation à vol d'oiseau) et le fond de carte de [CARTO](https://carto.com/attributions).
 
 ## Licence
 

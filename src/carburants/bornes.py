@@ -172,6 +172,20 @@ def stations_recharge(points: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def tarif_median(points: pl.DataFrame) -> tuple[float | None, int]:
+    """Le tarif typique (€/kWh) d'un ensemble de points : la médiane des tarifs médians de chaque opérateur, pour qu'un
+    opérateur qui publie beaucoup de tarifs (Lidl, par exemple) ne fasse pas la médiane à lui seul. Renvoie aussi le
+    nombre d'opérateurs dont un tarif est lisible."""
+    par_operateur = (
+        points.filter(pl.col("prix_kwh").is_not_null())
+        .group_by("operateur")
+        .agg(prix=pl.col("prix_kwh").median())
+    )
+    if par_operateur.is_empty():
+        return None, 0
+    return float(par_operateur["prix"].median()), par_operateur.height
+
+
 def _radians(table: pl.DataFrame) -> np.ndarray:
     return np.radians(table.select("latitude", "longitude").to_numpy())
 
