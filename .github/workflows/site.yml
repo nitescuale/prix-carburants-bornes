@@ -3,7 +3,7 @@ name: Site
 # Reconstruit le site (article, carte, simulateur de trajet) avec les données du jour et le publie sur GitHub Pages :
 # après chaque collecte réussie, et quand le site ou son code change sur main.
 # Le site est construit dans tous les cas ; il n'est publié que si GitHub Pages est activé pour le dépôt
-# (Settings > Pages > Source : GitHub Actions).
+# avec la source « GitHub Actions » (Settings > Pages).
 on:
   workflow_run:
     workflows: ["Collecte quotidienne"]
@@ -15,11 +15,17 @@ on:
       - "rapports/**"
       - "src/carburants/web.py"
       - "src/carburants/bornes.py"
+      - "src/carburants/cli.py"
+      - "pyproject.toml"
       - ".github/workflows/site.yml"
   pull_request:
     paths:
       - "site/**"
+      - "rapports/**"
       - "src/carburants/web.py"
+      - "src/carburants/bornes.py"
+      - "src/carburants/cli.py"
+      - "pyproject.toml"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
@@ -61,10 +67,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh api "repos/${{ github.repository }}/pages" --silent 2>/dev/null; then
+          # Pages doit être réglé sur « GitHub Actions » (et non « Deploy from a branch »)
+          source=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type 2>/dev/null || true)
+          if [ "$source" = "workflow" ]; then
             echo "actif=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice title=Site::GitHub Pages n'est pas activé : le site est construit mais pas publié."
+            echo "::notice title=Site::GitHub Pages n'est pas activé avec la source « GitHub Actions » : le site est construit mais pas publié."
           fi
 
   publier:

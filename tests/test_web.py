@@ -27,9 +27,10 @@ def _prix():
     return pl.DataFrame({
         "station_id": [1, 1, 1, 2, 3, 4],
         "carburant": ["Gazole", "E10", "Gazole", "SP98", "Gazole", "Gazole"],
-        "maj": [datetime(2026, 10, 18, 8), datetime(2026, 10, 10), datetime(2026, 10, 19, 7),
+        # Le prix le plus récent du gazole de la station 1 n'est pas la dernière ligne
+        "maj": [datetime(2026, 10, 19, 7), datetime(2026, 10, 10), datetime(2026, 10, 18, 8),
                 datetime(2026, 10, 19), datetime(2026, 10, 19), datetime(2026, 10, 1)],
-        "prix": [2.30, 2.10, 2.35, 2.40, 1.90, 2.20],
+        "prix": [2.35, 2.10, 2.30, 2.40, 1.90, 2.20],
     })
 
 
@@ -80,6 +81,16 @@ def test_sites_rapides():
     assert double["puissance_max_kw"] == 350.0 and double["prix_kwh"] == 0.59
 
 
+def test_sites_rapides_ignorent_les_points_lents():
+    # Une station avec un point rapide à 0,59 € et deux points lents à 0,25 € : seul le point rapide compte
+    points = _points().head(1).vstack(_points().head(2).tail(1)).with_columns(
+        puissance_kw=pl.Series([150.0, 22.0]), prix_kwh=pl.Series([0.59, 0.25]),
+    )
+    points = points.vstack(points.tail(1))
+    site = web.sites_rapides(points).row(0, named=True)
+    assert site["points_de_charge"] == 1 and site["prix_kwh"] == 0.59 and site["puissance_max_kw"] == 150.0
+
+
 def test_tarif_median_par_operateur():
     points = pl.DataFrame({
         "operateur": ["Lidl"] * 5 + ["A", "B"],
@@ -127,5 +138,7 @@ def test_construire(tmp_path):
     assert stations["date"] == "2026-10-19" and len(stations["lignes"]) == 2
     assert stations["colonnes"][:3] == ["station_id", "latitude", "longitude"]
     assert stations["lignes"][0][-1] == "2026-10-19"
-    # Sans bornes ni communes, ces fichiers sont simplement absents
-    assert not (sortie / "donnees" / "recharge.json").exists()
+    # Sans bornes, une table vide ; sans communes, pas de fichier
+    recharge = json.loads((sortie / "donnees" / "recharge.json").read_text())
+    assert recharge["lignes"] == [] and recharge["date"] is None and "prix_kwh" in recharge["colonnes"]
+    assert not (sortie / "donnees" / "communes.json").exists()

@@ -186,7 +186,7 @@
       <div class="etiquette">Pourquoi ce prix ?</div>
       <p style="margin:4px 0 8px">En ${meta.annee}, le gazole y était en moyenne <b>${nombre(Math.abs(e.reel), 1)} centimes ${sens}</b> prix médian national. Le modèle, qui n'avait pas vu cette station, prévoyait ${signe(e.prediction, 1)} c :</p>
       <div class="barres centrees">${barres}</div>
-      <p class="tres-petit discret" style="margin:8px 0 0">Station moyenne : ${signe(e.base, 1)} c ; chaque barre ajoute ou retire des centimes à cette moyenne (valeurs de Shapley). Le lieu regroupe la position et la concurrence, l'équipement les services et les carburants vendus. Erreur moyenne du modèle : ${nombre(meta.erreur_moyenne, 1)} c.</p>
+      <p class="tres-petit discret" style="margin:8px 0 0">Station moyenne : ${signe(e.base, 1)} c ; chaque barre ajoute ou retire des centimes à cette moyenne (valeurs de Shapley). Le lieu regroupe la position et la concurrence, l'équipement les services et les carburants vendus. Valeurs arrondies au dixième. Erreur moyenne du modèle : ${nombre(meta.erreur_moyenne, 1)} c.</p>
     </div>`;
   }
 
@@ -235,7 +235,7 @@
       html += `<p class="petit discret" style="margin:0">${proches.length} station${proches.length > 1 ? "s" : ""} à moins de ${rayon} km ; prix médian ${euros(medLocale, 3)} (France : ${euros(mediane, 3)}).</p>`;
       html += '<ol class="liste-stations">';
       for (const { s, d } of proches.slice(0, 5)) {
-        html += `<li data-id="${s.station_id}"><span class="nom">${echapper(nomStation(s))}</span><span class="prix">${euros(s[carburant], 3)}</span><span class="detail">${echapper(s.adresse)}, ${echapper(s.ville)} · ${nombre(d, 1)} km${s.autoroute ? " · autoroute" : ""}</span></li>`;
+        html += `<li data-id="${s.station_id}" tabindex="0" role="button"><span class="nom">${echapper(nomStation(s))}</span><span class="prix">${euros(s[carburant], 3)}</span><span class="detail">${echapper(s.adresse)}, ${echapper(s.ville)} · ${nombre(d, 1)} km${s.autoroute ? " · autoroute" : ""}</span></li>`;
       }
       html += "</ol>";
       const gain = (medLocale - tries[0]) * 50;
@@ -252,13 +252,22 @@
     panneauAutour.innerHTML = html;
     panneauAutour.querySelectorAll("li[data-id]").forEach((li) => {
       li.addEventListener("click", () => ouvrirStation(Number(li.dataset.id)));
+      li.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          ouvrirStation(Number(li.dataset.id));
+        }
+      });
     });
+    // Sur téléphone, le panneau est sous la carte : on le fait apparaître
+    if (window.matchMedia("(max-width: 820px)").matches) panneauAutour.scrollIntoView({ behavior: "smooth", block: "start" });
     dernierPoint = { lat, lon, nom };
   }
 
   function ouvrirStation(id) {
     calqueStations.eachLayer((marque) => {
       if (marque.station?.station_id === id) {
+        if (window.matchMedia("(max-width: 820px)").matches) document.getElementById("carte").scrollIntoView({ block: "start" });
         carte.setView(marque.getLatLng(), Math.max(carte.getZoom(), 13));
         marque.openPopup();
       }

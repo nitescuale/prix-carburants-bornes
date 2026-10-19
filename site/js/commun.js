@@ -75,12 +75,15 @@ const Commun = (() => {
     champ.parentNode.insertBefore(conteneur, champ);
     conteneur.appendChild(champ);
     const liste = document.createElement("ul");
+    liste.id = `${champ.id}-propositions`;
     liste.setAttribute("role", "listbox");
     liste.hidden = true;
     conteneur.appendChild(liste);
     champ.setAttribute("autocomplete", "off");
     champ.setAttribute("role", "combobox");
     champ.setAttribute("aria-expanded", "false");
+    champ.setAttribute("aria-controls", liste.id);
+    champ.setAttribute("aria-autocomplete", "list");
 
     let propositions = [];
     let active = -1;
@@ -103,6 +106,7 @@ const Commun = (() => {
       propositions.forEach((c, i) => {
         const li = document.createElement("li");
         li.setAttribute("role", "option");
+        li.id = `${liste.id}-${i}`;
         li.setAttribute("aria-selected", i === active ? "true" : "false");
         li.innerHTML = `<span>${echapper(c.nom)}</span><small>${echapper(c.departement)}</small>`;
         li.addEventListener("mousedown", (e) => {
@@ -113,6 +117,8 @@ const Commun = (() => {
       });
       liste.hidden = propositions.length === 0;
       champ.setAttribute("aria-expanded", String(!liste.hidden));
+      if (active >= 0) champ.setAttribute("aria-activedescendant", `${liste.id}-${active}`);
+      else champ.removeAttribute("aria-activedescendant");
     }
 
     champ.addEventListener("focus", () => communes(), { once: true });
@@ -133,19 +139,20 @@ const Commun = (() => {
         if (debut.length >= 8) break;
       }
       propositions = [...debut, ...ailleurs].slice(0, 8);
-      active = propositions.length ? 0 : -1;
+      active = -1;
       afficher();
     });
     champ.addEventListener("keydown", (e) => {
       if (liste.hidden) return;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        const pas = e.key === "ArrowDown" ? 1 : -1;
-        active = (active + pas + propositions.length) % propositions.length;
+        const n = propositions.length;
+        active = e.key === "ArrowDown" ? (active + 1) % n : active <= 0 ? n - 1 : active - 1;
         afficher();
-      } else if (e.key === "Enter" && active >= 0) {
+      } else if (e.key === "Enter" && propositions.length) {
+        // Sans proposition surlignée, Entrée retient la première (la commune la plus peuplée)
         e.preventDefault();
-        retenir(propositions[active]);
+        retenir(propositions[Math.max(active, 0)]);
       } else if (e.key === "Escape") {
         fermer();
       }

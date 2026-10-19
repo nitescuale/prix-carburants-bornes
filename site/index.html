@@ -23,7 +23,7 @@
     <section class="ouverture">
       <p class="etiquette">Projet de data science · données publiques françaises</p>
       <h1>Faire le plein ou recharger&nbsp;?</h1>
-      <p class="chapeau">Vingt ans de prix à la pompe, 10&nbsp;000 stations-service et 133&nbsp;000 points de charge&nbsp;: ce que disent les données publiques du prix des carburants, de ce qui le fait varier d'une station à l'autre, et de ce que coûte vraiment la recharge d'une voiture électrique. Avec une carte et un simulateur de trajet mis à jour chaque matin.</p>
+      <p class="chapeau">Vingt ans de prix à la pompe, près de 10&nbsp;000 stations-service et 133&nbsp;000 points de charge&nbsp;: ce que disent les données publiques du prix des carburants, de ce qui le fait varier d'une station à l'autre, et de ce que coûte vraiment la recharge d'une voiture électrique. Avec une carte et un simulateur de trajet mis à jour chaque matin.</p>
 
       <div class="aujourdhui" id="aujourdhui">
         <div class="aujourdhui-tete">
@@ -47,17 +47,17 @@
     <section class="en-bref">
       <h2>En bref</h2>
       <ul>
-        <li><b>2026 est une année record</b> : le gazole a atteint 2,42&nbsp;€ le litre à la mi-septembre, au-dessus du pic de 2022. Le pétrole n'explique qu'une petite part de la hausse&nbsp;: l'écart entre le baril et la pompe a triplé depuis 2021.</li>
-        <li><b>Le gazole monte en fusée et redescend en plume</b>&nbsp;: de 2005 à 2021, pour 10 centimes de Brent, il gagnait 11,4 centimes en une semaine à la hausse mais n'en rendait que 7,2 à la baisse.</li>
+        <li><b>2026 est une année record en euros courants</b> : le gazole a atteint 2,42&nbsp;€ le litre à la mi-septembre, au-dessus du pic de 2022. Le pétrole n'explique qu'une petite part de la hausse&nbsp;: l'écart entre le baril et la pompe a triplé depuis 2021.</li>
+        <li><b>Le gazole monte en fusée et redescend en plume</b>&nbsp;: de 2005 à 2021, pour 10 centimes de Brent, le gazole hors taxes gagnait 11,4 centimes en une semaine à la hausse mais n'en rendait que 7,2 à la baisse.</li>
         <li><b>L'enseigne fait le prix</b>&nbsp;: une station TotalEnergies classique vend le gazole 10 centimes plus cher qu'une grande surface du même département. La concurrence locale pèse huit fois moins.</li>
-        <li><b>Un modèle prédit le prix d'une station à 2,4 centimes près</b>, presque aussi bien dans un département qu'il n'a jamais vu.</li>
+        <li><b>Un modèle prédit le prix d'une station avec une erreur moyenne de 2,4 centimes</b>, presque aussi bien dans un département qu'il n'a jamais vu.</li>
         <li><b>Recharger chez soi coûte environ un tiers du gazole</b> aux prix d'octobre 2026 (4,5&nbsp;€ contre 13&nbsp;€ aux 100&nbsp;km), plutôt la moitié en 2024 et 2025. Sur borne ultra-rapide, l'avantage dépend du prix du gazole.</li>
       </ul>
     </section>
 
     <section>
       <h2><span class="numero">1</span>La démarche</h2>
-      <p>Le projet suit le chemin complet d'une étude de données, de la question à une application qui se met à jour seule. Chaque étape a son notebook, publié avec le code&nbsp;; chaque chiffre de cet article en vient et y est vérifié automatiquement.</p>
+      <p>Le projet suit le chemin complet d'une étude de données, de la question à une application qui se met à jour seule. Chaque étape a son notebook, publié avec le code&nbsp;; chaque chiffre de cet article vient d'un notebook, où une assertion le vérifie à chaque exécution.</p>
       <ol class="etapes">
         <li><b>Cadrage</b> : une question simple, « faire le plein ou recharger&nbsp;? », et les données publiques qui permettent d'y répondre.</li>
         <li><b>Collecte</b> : un paquet Python et une tâche GitHub Actions qui photographient chaque matin les prix de toutes les stations, chaque semaine les bornes, et rangent tout en Parquet sur une branche dédiée.</li>
@@ -76,7 +76,7 @@
           <tbody>
             <tr><td><a href="https://www.prix-carburants.gouv.fr/rubrique/opendata/">Prix des carburants</a> (ministère de l'Économie)</td><td>Prix déclarés par chaque station : flux du jour et historique depuis 2007 (64 millions de changements de prix)</td><td>Quotidienne</td></tr>
             <tr><td><a href="https://www.data.gouv.fr/fr/datasets/fichier-consolide-des-bornes-de-recharge-pour-vehicules-electriques/">Bornes de recharge IRVE</a> (data.gouv.fr)</td><td>Fichier consolidé des points de charge : position, puissance, opérateur, tarif</td><td>Hebdomadaire</td></tr>
-            <tr><td><a href="https://www.openstreetmap.org/">OpenStreetMap</a></td><td>Enseigne des stations-service (81 % des stations appariées)</td><td>Hebdomadaire</td></tr>
+            <tr><td><a href="https://www.openstreetmap.org/">OpenStreetMap</a></td><td>Enseigne des stations-service (80 % des stations appariées)</td><td>Hebdomadaire</td></tr>
             <tr><td><a href="https://fred.stlouisfed.org/">FRED</a> (Réserve fédérale de Saint-Louis)</td><td>Cours du Brent et taux de change euro-dollar</td><td>Quotidienne</td></tr>
             <tr><td><a href="https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en">Bulletin pétrolier</a> (Commission européenne)</td><td>Prix moyens avec et sans taxes</td><td>Hebdomadaire</td></tr>
             <tr><td><a href="https://geo.api.gouv.fr/">API Géo</a>, <a href="https://www.data.gouv.fr/fr/datasets/voitures-particulieres-immatriculees-par-commune-et-par-type-de-recharge/">Agence ORE</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_204/default/table">Eurostat</a></td><td>Communes et population ; voitures électriques par commune ; prix de l'électricité des ménages</td><td>Hebdomadaire</td></tr>
@@ -87,7 +87,7 @@
 
     <section>
       <h2><span class="numero">2</span>Vingt ans de prix à la pompe</h2>
-      <p>Le gazole est passé d'environ 1,10&nbsp;€ le litre en moyenne en 2007 à 1,86&nbsp;€ en 2022, puis 2,07&nbsp;€ de janvier à la mi-octobre 2026. Les grandes secousses se lisent directement&nbsp;: le pic de 2008 et la chute qui suit, le point bas de fin 2015, le creux du confinement, la flambée de 2022. <b>2026 bat les records</b>&nbsp;: 60 centimes de hausse en cinq semaines au printemps, puis 2,42&nbsp;€ à la mi-septembre, au-dessus du pic de 2022 (2,17&nbsp;€).</p>
+      <p>Le gazole est passé d'environ 1,10&nbsp;€ le litre en moyenne en 2007 à 1,86&nbsp;€ en 2022, puis 2,07&nbsp;€ de janvier à la mi-octobre 2026. Les grandes secousses se lisent directement&nbsp;: le pic de 2008 et la chute qui suit, le point bas de fin 2015, le creux du confinement, la flambée de 2022. <b>2026 bat les records en euros courants</b>&nbsp;: 60 centimes de hausse en cinq semaines au printemps, puis 2,42&nbsp;€ à la mi-septembre, au-dessus du pic de 2022 (2,17&nbsp;€).</p>
       <figure>
         <img src="figures/06_vingt_ans_de_prix.png" alt="Prix médian hebdomadaire du gazole et de l'essence de 2007 à 2026" loading="lazy">
         <figcaption>Prix médian hebdomadaire des stations, en euros courants. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/02_historique.ipynb">Notebook 02</a>.</figcaption>
@@ -100,7 +100,7 @@
       <figure>
         <img src="figures/09_departements.png" alt="Écart de prix du gazole par département" loading="lazy">
       </figure>
-      <p class="aparte">Une curiosité des données&nbsp;: en 2026, 93&nbsp;% des stations TotalEnergies affichent le gazole au même prix rond, 2,25&nbsp;€, un plafonnement commercial de l'enseigne qui déforme les statistiques nationales. C'est le premier indice que l'enseigne compte beaucoup.</p>
+      <p class="aparte">Une curiosité des données&nbsp;: en 2026, 93&nbsp;% des stations TotalEnergies affichent le gazole au même prix rond, 2,25&nbsp;€, un prix uniforme dans tout le réseau de l'enseigne, qui déforme les statistiques nationales. C'est le premier indice que l'enseigne compte beaucoup.</p>
     </section>
 
     <section>
@@ -127,7 +127,7 @@
 
     <section>
       <h2><span class="numero">4</span>L'enseigne avant la concurrence</h2>
-      <p>D'une station à l'autre, à quoi tient le prix&nbsp;? Une régression sur près de 9&nbsp;000 stations, à département égal, isole les effets. En 2025, une station <b>TotalEnergies</b> classique vend le gazole <b>9,8 centimes</b> plus cher qu'une grande surface, un autre pétrolier 7,1 centimes plus cher. Les stations <b>Total Access</b>, le format à bas prix du groupe, ne sont que 1,9 centime au-dessus des grandes surfaces.</p>
+      <p>D'une station à l'autre, à quoi tient le prix&nbsp;? Une régression sur près de 9&nbsp;000 stations compare des stations du même département et du même environnement&nbsp;; les écarts mesurés restent des associations, pas des effets démontrés. En 2025, une station <b>TotalEnergies</b> classique vend le gazole <b>9,8 centimes</b> plus cher qu'une grande surface, un autre pétrolier 7,1 centimes plus cher. Les stations <b>Total Access</b>, le format à bas prix du groupe, ne sont que 1,9 centime au-dessus des grandes surfaces.</p>
       <figure>
         <img src="figures/15_enseigne_et_concurrence.png" alt="Écart de prix selon l'enseigne et le nombre de concurrents" loading="lazy">
         <figcaption>Enseignes appariées à OpenStreetMap ; concurrents comptés à moins de 5 km. <a href="https://github.com/nitescuale/prix-carburants-bornes/blob/main/notebooks/04_concurrence.ipynb">Notebook 04</a>.</figcaption>
@@ -152,7 +152,7 @@
         <img src="figures/19_modele_station.png" alt="Décomposition de la prédiction pour une station" loading="lazy">
       </figure>
       <h3>Prévoir la semaine suivante</h3>
-      <p>Pour le prix national, le meilleur point de départ est le prix de la semaine en cours. Une régression sur le Brent des semaines passées fait mieux de 11&nbsp;% (7&nbsp;% depuis 2022, une différence significative au test de Diebold et Mariano)&nbsp;; mais pour deviner seulement le sens de la variation, une règle naïve, « comme la semaine dernière », reste imbattable (84&nbsp;% de bonnes réponses contre 80&nbsp;%).</p>
+      <p>Pour le prix national, le meilleur point de départ est le prix de la semaine en cours. Une régression sur le Brent des semaines passées fait mieux de 11&nbsp;% (7&nbsp;% depuis 2022, une différence significative au test de Diebold et Mariano)&nbsp;; mais pour deviner seulement le sens de la variation, une règle naïve, « comme la semaine dernière », reste imbattable (84&nbsp;% de bonnes réponses contre 79&nbsp;% pour la régression sur le Brent).</p>
       <figure>
         <img src="figures/20_prevision.png" alt="Erreur de prévision à une semaine selon le modèle" loading="lazy">
       </figure>

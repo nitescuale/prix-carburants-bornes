@@ -81,21 +81,29 @@
     }
   }
 
-  /** Des repères tous les kilomètres environ le long de la route, avec leur distance depuis le départ. */
+  /** Des repères au plus tous les 500 m le long de la route (y compris au milieu des longs segments), avec leur
+   *  distance depuis le départ. */
   function reperes(route) {
-    const sortie = [];
+    const PAS_KM = 0.5;
+    const [la0, lo0] = route.points[0];
+    const sortie = [{ lat: la0, lon: lo0, km: 0 }];
     let cumul = 0;
-    let suivant = 0;
-    for (let i = 0; i < route.points.length; i++) {
-      if (i > 0) {
-        const [la1, lo1] = route.points[i - 1];
-        const [la2, lo2] = route.points[i];
-        cumul += distanceKm(la1, lo1, la2, lo2);
+    let dernier = 0;
+    for (let i = 1; i < route.points.length; i++) {
+      const [la1, lo1] = route.points[i - 1];
+      const [la2, lo2] = route.points[i];
+      const longueur = distanceKm(la1, lo1, la2, lo2);
+      // Un long segment est découpé en morceaux de PAS_KM au plus
+      const morceaux = Math.max(1, Math.ceil(longueur / PAS_KM));
+      for (let k = 1; k <= morceaux; k++) {
+        const f = k / morceaux;
+        const km = cumul + longueur * f;
+        if (km - dernier >= PAS_KM * 0.999 || (i === route.points.length - 1 && k === morceaux)) {
+          sortie.push({ lat: la1 + (la2 - la1) * f, lon: lo1 + (lo2 - lo1) * f, km });
+          dernier = km;
+        }
       }
-      if (cumul >= suivant || i === route.points.length - 1) {
-        sortie.push({ lat: route.points[i][0], lon: route.points[i][1], km: cumul });
-        suivant = cumul + 1;
-      }
+      cumul += longueur;
     }
     // Les distances suivent la longueur annoncée de l'itinéraire (ou de l'estimation)
     const facteur = cumul > 0 ? route.km / cumul : 1;
@@ -148,7 +156,8 @@
     let position = 0;
     let charge = chargeDepart;
     let impossible = false;
-    while (position + autonomie(charge) < km) {
+    // La marge évite un arrêt fantôme quand la charge vise exactement l'arrivée (erreur d'arrondi)
+    while (km - position > autonomie(charge) + 1e-6) {
       const portee = position + autonomie(charge);
       const candidates = bornes.filter((b) => b.km > position + 1 && b.km <= portee);
       if (!candidates.length) {
@@ -161,8 +170,14 @@
         : candidates.sort((a, b) => b.km - a.km)[0];
       const arrivee = charge - ((borne.km - position) * conso) / 100 / batterie;
       const besoin = RESERVE + ((km - borne.km) * conso) / 100 / batterie;
-      const cible = Math.min(CIBLE, Math.max(besoin, arrivee));
-      const energie = (cible - arrivee) * batterie;
+      const cible = Math.max(arrivee, Math.min(CIBLE, besoin));
+      const energie = Math.max(0, cible - arrivee) * batterie;
+      if (energie < 0.1) {
+        // Batterie déjà au-dessus de 80 % : on passe cette borne sans s'arrêter
+        position = borne.km;
+        charge = arrivee;
+        continue;
+      }
       const { prix, declare } = tarif(borne);
       // Puissance moyenne : la moitié de la puissance de la borne, au plus 75 kW (la recharge ralentit en fin de charge)
       const puissance = Math.min(borne.puissance_max_kw / 2, 75);
@@ -271,8 +286,11 @@
 
     // Détail électrique
     html += `<div class="bloc"><h2><i class="pastille" style="background:var(--violet)"></i>Électrique : ${nombre(energie, 0)} kWh</h2>`;
-    if (impossible) {
-      html += `<p class="alerte">Pas de borne ${puissanceMin >= 150 ? "ultra-rapide" : "rapide"} à portée sur une partie de la route avec cette autonomie : essayez toutes les bornes rapides, une batterie plus grande ou une charge au départ plus élevée.</p>`;
+    if (impossible && route.estime) {
+      html += `<p class="alerte">L'itinéraire routier n'a pas pu être calculé : la ligne droite passe loin des bornes des grands axes, et le plan de recharge n'est pas fiable. Réessayez dans un instant.</p>`;
+    } else if (impossible) {
+      const conseils = [puissanceMin >= 150 ? "toutes les bornes rapides" : null, "une batterie plus grande", "une charge au départ plus élevée"].filter(Boolean);
+      html += `<p class="alerte">Pas de borne ${puissanceMin >= 150 ? "ultra-rapide" : "rapide"} à portée sur une partie de la route avec cette autonomie : essayez ${conseils.slice(0, -1).join(", ")} ou ${conseils[conseils.length - 1]}.</p>`;
     } else if (!arrets.length) {
       html += `<p class="petit" style="margin:0">Pas besoin de recharger en route : la batterie chargée à ${nombre(chargeDepart * 100)} % suffit, au tarif domicile (${euros(prixDomicile, 3)} le kWh).</p>`;
     } else {
@@ -303,7 +321,7 @@
     }
     if (moinsChere) {
       L.circleMarker([moinsChere.latitude, moinsChere.longitude], { radius: 9, color: "#fff", weight: 2, fillColor: COULEURS.thermique, fillOpacity: 1 })
-        .bindTooltip(`La moins chère : ${euros(moinsChere[carburant], 3)}`, { permanent: true, direction: "top", offset: [0, -8] })
+        .bindTooltip(`La moins chère : ${euros(moinsChere[carburant], 3)}`, { direction: "top", offset: [0, -8] })
         .addTo(calque);
     }
     arrets.forEach((a, i) => {

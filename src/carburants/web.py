@@ -51,7 +51,7 @@ def prix_du_jour(stations: pl.DataFrame, prix: pl.DataFrame, jour: date,
     recents = prix.filter(
         pl.col("carburant").is_in(CARBURANTS),
         pl.col("maj").dt.date() > jour - timedelta(days=FRAICHEUR_JOURS),
-    )
+    ).sort("maj")  # « last » ci-dessous : le prix le plus récent
     larges = recents.pivot("carburant", index="station_id", values="prix", aggregate_function="last")
     for carburant in CARBURANTS:
         if carburant not in larges.columns:
@@ -78,11 +78,14 @@ def prix_du_jour(stations: pl.DataFrame, prix: pl.DataFrame, jour: date,
 
 
 def sites_rapides(points: pl.DataFrame) -> pl.DataFrame:
-    """Les sites de recharge rapide (50 kW et plus) : stations voisines de moins de 150 m regroupées, avec leurs
-    opérateurs, la puissance maximale, le nombre de points de charge et le tarif médian lisible (€/kWh)."""
-    publics = points.filter(pl.col("metropole"), ~pl.col("acces_reserve").fill_null(False))
-    stations = bornes.stations_recharge(publics).filter(pl.col("puissance_max_kw") >= bornes.RAPIDE_KW)
-    tarifs = publics.group_by("id_station").agg(prix_kwh=pl.col("prix_kwh").median())
+    """Les sites de recharge rapide : stations voisines de moins de 150 m regroupées, avec leurs opérateurs, la
+    puissance maximale, le nombre de points de charge rapides (50 kW et plus) et leur tarif médian lisible (€/kWh).
+    Les points lents d'une même station (et leurs tarifs) sont laissés de côté."""
+    rapides = points.filter(
+        pl.col("metropole"), ~pl.col("acces_reserve").fill_null(False), pl.col("puissance_kw") >= bornes.RAPIDE_KW
+    )
+    stations = bornes.stations_recharge(rapides)
+    tarifs = rapides.group_by("id_station").agg(prix_kwh=pl.col("prix_kwh").median())
     stations = stations.join(tarifs, on="id_station", how="left")
     stations = stations.with_columns(site=pl.Series(bornes.sites(stations)))
     return (
@@ -178,14 +181,18 @@ def donnees(dossier: Path, sortie: Path) -> dict:
     decimales = {"latitude": 5, "longitude": 5} | {c: 3 for c in CARBURANTS}
     ecrire_json({"date": jour_prix.isoformat()} | colonnes(prix, decimales), sortie / "stations.json")
 
-    points, jour_bornes, rapides = None, None, pl.DataFrame()
+    points, jour_bornes = None, None
+    rapides = pl.DataFrame(schema={"latitude": pl.Float64, "longitude": pl.Float64, "operateurs": pl.Utf8,
+                                   "puissance_max_kw": pl.Float64, "points_de_charge": pl.UInt32, "prix_kwh": pl.Float64})
     fichier_irve = dernier(dossier / "irve", "bornes_*.parquet")
     if fichier_irve is not None:
         jour_bornes = date.fromisoformat(fichier_irve.stem.removeprefix("bornes_"))
         points = bornes.nettoyer(pl.read_parquet(fichier_irve), aujourd_hui=jour_bornes)
         rapides = sites_rapides(points)
-        decimales = {"latitude": 5, "longitude": 5, "puissance_max_kw": 0, "prix_kwh": 3}
-        ecrire_json({"date": jour_bornes.isoformat()} | colonnes(rapides, decimales), sortie / "recharge.json")
+    # Sans fichier des bornes, une table vide : la carte et le trajet s'affichent quand même
+    decimales = {"latitude": 5, "longitude": 5, "puissance_max_kw": 0, "prix_kwh": 3}
+    ecrire_json({"date": jour_bornes.isoformat() if jour_bornes else None} | colonnes(rapides, decimales),
+                sortie / "recharge.json")
 
     territoires = dossier / "territoires"
     if (territoires / "communes.parquet").exists():
