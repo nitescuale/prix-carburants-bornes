@@ -123,7 +123,7 @@ carburants --dossier data site --sortie _site    # puis : python -m http.server 
 carburants --dossier data explication --annee 2025   # recalcule rapports/explication_stations.json (extra analyse et historique)
 ```
 
-Le workflow [Site](.github/workflows/site.yml) reconstruit le site après chaque collecte et le publie sur GitHub Pages. Le trajet utilise le serveur de démonstration d'[OSRM](https://project-osrm.org/) (à défaut, une estimation à vol d'oiseau) et le fond de carte de [CARTO](https://carto.com/attributions).
+Le workflow [Site](.github/workflows/site.yml) reconstruit le site après chaque collecte et le publie sur GitHub Pages. Le trajet utilise le serveur de démonstration d'[OSRM](https://project-osrm.org/) (à défaut, une estimation à vol d'oiseau) et les tuiles d'[OpenStreetMap](https://www.openstreetmap.org/copyright).
 
 ## Licence
 
