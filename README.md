@@ -87,6 +87,9 @@ jupyter lab notebooks/
 | Notebook | Contenu |
 |---|---|
 | [01_exploration](notebooks/01_exploration.ipynb) | Prix par carburant, autoroute contre route, géographie, concurrence locale, bornes de recharge, qualité des données |
+| [02_historique](notebooks/02_historique.ipynb) | Vingt ans de prix (2007-2026) : record de 2026, écart gazole / essence, prix identiques de TotalEnergies, géographie, jour de la semaine ; chiffres cités vérifiés par le notebook et exportés dans `rapports/chiffres_02.json` |
+
+Le notebook 02 lit l'historique de la release (`gh release download historique --dir data/historique`) et le reconstruit en série hebdomadaire avec `carburants.analyse.prix_hebdo` : prévoir environ 6 Go de mémoire.
 
 Les graphiques exportés pour le site sont dans [`rapports/figures`](rapports/figures).
 
