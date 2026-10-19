@@ -62,3 +62,36 @@ def test_telecharger_xml_extrait_le_zip(monkeypatch):
 
     monkeypatch.setattr(prix.requests, "get", lambda url, timeout: Reponse())
     assert prix.telecharger_xml(prix.URL_INSTANTANE) == FIXTURE.read_bytes()
+
+
+def test_parser_accepte_un_flux():
+    with FIXTURE.open("rb") as flux:
+        stations, tarifs = prix.parser_xml(flux)
+    assert stations.height == 2
+    assert tarifs.height == 3
+
+
+def test_collecter_zip_lit_l_archive_sur_disque(monkeypatch):
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w") as archive:
+        archive.writestr("PrixCarburants_annuel_2008.xml", FIXTURE.read_bytes())
+    contenu = tampon.getvalue()
+
+    class Reponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size):
+            for debut in range(0, len(contenu), 100):
+                yield contenu[debut : debut + 100]
+
+    monkeypatch.setattr(prix.requests, "get", lambda url, timeout, stream: Reponse())
+    stations, tarifs = prix.collecter_zip(prix.url_annee(2008))
+    assert stations["id"].to_list() == [1000001, 13100005]
+    assert tarifs.height == 3

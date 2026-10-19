@@ -1,4 +1,4 @@
-"""Ligne de commande : `carburants instantane`, `carburants annee 2024`, `carburants irve`."""
+"""Ligne de commande : `carburants instantane`, `carburants annee 2024`, `carburants irve`, `carburants enseignes`."""
 
 from __future__ import annotations
 
@@ -6,11 +6,13 @@ import argparse
 from datetime import date
 from pathlib import Path
 
-from carburants import irve, prix
+import polars as pl
+
+from carburants import enseignes, irve, prix
 
 
 def collecter_instantane(dossier: Path) -> None:
-    stations, tarifs = prix.parser_xml(prix.telecharger_xml(prix.URL_INSTANTANE))
+    stations, tarifs = prix.collecter_zip(prix.URL_INSTANTANE)
     cible = dossier / "prix" / "instantane" / f"date={date.today().isoformat()}"
     cible.mkdir(parents=True, exist_ok=True)
     stations.write_parquet(cible / "stations.parquet")
@@ -19,7 +21,7 @@ def collecter_instantane(dossier: Path) -> None:
 
 
 def collecter_annee(dossier: Path, annee: int) -> None:
-    stations, tarifs = prix.parser_xml(prix.telecharger_xml(prix.url_annee(annee)))
+    stations, tarifs = prix.collecter_zip(prix.url_annee(annee))
     cible = dossier / "prix" / "historique" / f"annee={annee}"
     cible.mkdir(parents=True, exist_ok=True)
     stations.write_parquet(cible / "stations.parquet")
@@ -35,6 +37,19 @@ def collecter_irve(dossier: Path) -> None:
     print(f"{len(bornes)} points de recharge -> {cible}")
 
 
+def collecter_enseignes(dossier: Path) -> None:
+    photos = sorted((dossier / "prix" / "instantane").glob("date=*/stations.parquet"))
+    if not photos:
+        raise SystemExit("Aucune photo des stations : lancer d'abord `carburants instantane`")
+    stations = pl.read_parquet(photos[-1])
+    resultat = enseignes.apparier(stations, enseignes.telecharger_osm())
+    cible = dossier / "enseignes"
+    cible.mkdir(parents=True, exist_ok=True)
+    resultat.write_parquet(cible / f"stations_enseignes_{date.today().isoformat()}.parquet")
+    trouvees = resultat.filter(pl.col("enseigne").is_not_null()).height
+    print(f"{trouvees}/{resultat.height} stations avec une enseigne ({trouvees / resultat.height:.0%}) -> {cible}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="carburants")
     parser.add_argument("--dossier", type=Path, default=Path("data"), help="dossier de sortie (défaut : data)")
@@ -43,14 +58,17 @@ def main() -> None:
     annee = sous.add_parser("annee", help="historique complet des prix d'une année")
     annee.add_argument("annee", type=int)
     sous.add_parser("irve", help="fichier consolidé des bornes de recharge")
+    sous.add_parser("enseignes", help="enseigne des stations, via OpenStreetMap")
     args = parser.parse_args()
 
     if args.commande == "instantane":
         collecter_instantane(args.dossier)
     elif args.commande == "annee":
         collecter_annee(args.dossier, args.annee)
-    else:
+    elif args.commande == "irve":
         collecter_irve(args.dossier)
+    else:
+        collecter_enseignes(args.dossier)
 
 
 if __name__ == "__main__":
