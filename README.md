@@ -1,5 +1,8 @@
 # Faire le plein ou recharger ?
 
+[![Tests](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/ci.yml/badge.svg)](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/ci.yml)
+[![Collecte quotidienne](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/collecte.yml/badge.svg)](https://github.com/nitescuale/prix-carburants-bornes/actions/workflows/collecte.yml)
+
 Projet de data science de bout en bout sur les données publiques françaises : prix des carburants à la pompe et bornes de recharge pour véhicules électriques.
 
 ## Données
@@ -30,9 +33,40 @@ Chaque collecte produit des fichiers Parquet : `stations.parquet` (une ligne par
 
 Le workflow [Collecte quotidienne](.github/workflows/collecte.yml) lance la photo des prix chaque matin, les bornes et les enseignes chaque lundi, puis publie les fichiers sur la branche `data`.
 
-Le flux des prix ne donne pas l'enseigne des stations : `carburants enseignes` rapproche chaque station de la station OpenStreetMap la plus proche (à moins de 250 m) et normalise la marque (« Total Access » → TotalEnergies, « Super U » → Système U...), avec un indicateur `grande_surface`.
+### Dictionnaire des données
 
-L'historique complet (un fichier par année depuis 2007, chaque changement de prix) est trop volumineux pour la branche `data`. Le workflow [Historique des prix](.github/workflows/historique.yml) le publie dans la release [`historique`](../../releases/tag/historique) et recharge l'année en cours chaque dimanche :
+`stations.parquet`
+
+| Colonne | Contenu |
+|---|---|
+| `id` | Identifiant de la station dans le flux |
+| `latitude`, `longitude` | Degrés WGS84 (publiés ×100 000 ; null si absents ou nuls). Souvent arrondis à 3 décimales, soit environ 100 m |
+| `cp`, `adresse`, `ville` | Adresse déclarée |
+| `type_route` | `autoroute` ou `route` |
+| `automate_24_24` | Paiement par automate 24 h/24 |
+| `services` | Liste des services déclarés |
+| `fermeture_type`, `fermeture_debut`, `fermeture_fin` | Fermeture déclarée : `T` temporaire, `D` définitive (texte brut du flux) |
+| `ruptures` | Carburants en rupture de stock sans date de fin |
+
+`prix.parquet`
+
+| Colonne | Contenu |
+|---|---|
+| `station_id` | Identifiant de la station |
+| `carburant`, `carburant_id` | Gazole (1), SP95 (2), E85 (3), GPLc (4), E10 (5), SP98 (6) |
+| `maj` | Date et heure de mise à jour du prix, **heure de Paris sans fuseau** |
+| `prix` | Euros par litre (les fichiers anciens publient des millièmes, convertis) |
+
+Contrôles appliqués à la lecture : prix hors de [0,20 ; 4,00] €/L écartés (quelques centaines par an, saisies du type 9,999 €), un seul prix par station, carburant et minute (le dernier publié).
+
+Limites connues :
+- dans les fichiers 2015 et 2016, la minute de `maj` est souvent égale au mois (« 01:04 » en avril) : l'heure de ces années n'est fiable qu'au jour près ;
+- environ un quart des prix de la photo du jour ont plus de 7 jours, et quelques centaines de stations n'ont plus aucun prix récent : il faut filtrer sur `maj` pour parler de prix « actuels » ;
+- la photo quotidienne est prise vers 7 h (heure de Paris) ; la branche `data` évolue, un notebook reproductible doit noter le commit utilisé.
+
+Le flux des prix ne donne pas l'enseigne des stations : `carburants enseignes` rapproche chaque station de la station OpenStreetMap la plus proche (à moins de 250 m) et normalise la marque (« Total Access » → TotalEnergies, « Super U » → Système U...), avec un indicateur `grande_surface`. Le nom OSM ne sert que s'il commence par une enseigne connue, et `osm_partage` signale deux stations du flux rattachées à la même station OSM. Si Overpass est indisponible, le workflow publie quand même les prix et affiche un avertissement.
+
+L'historique complet (un fichier par année depuis 2007, chaque changement de prix) est trop volumineux pour la branche `data`. Le workflow [Historique des prix](.github/workflows/historique.yml) le publie dans la release [`historique`](../../releases/tag/historique) et recharge l'année en cours chaque dimanche. Chaque année a une fiche `prix_AAAA.json` (commit qui l'a produite, nombre de lignes, dates extrêmes) :
 
 ```bash
 gh release download historique --dir data/historique --pattern "prix_202*.parquet"
@@ -51,3 +85,7 @@ jupyter lab notebooks/
 | [01_exploration](notebooks/01_exploration.ipynb) | Prix par carburant, autoroute contre route, géographie, concurrence locale, bornes de recharge, qualité des données |
 
 Les graphiques exportés pour le site sont dans [`rapports/figures`](rapports/figures).
+
+## Licence
+
+Code sous licence MIT. Les données restent sous Licence Ouverte (Etalab) et ODbL pour OpenStreetMap.

@@ -1,7 +1,8 @@
 name: Collecte quotidienne
 
 # Chaque matin : photo des prix de toutes les stations ; chaque lundi : bornes IRVE et enseignes des stations (OpenStreetMap).
-# Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données.
+# Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données
+# (sans écraser la photo des prix déjà prise ce jour-là).
 # Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
 on:
   push:
@@ -47,7 +48,12 @@ jobs:
           fi
 
       - name: Prix instantanés
-        run: carburants --dossier donnees instantane
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -d "donnees/prix/instantane/date=$(date -u +%F)" ]; then
+            echo "La photo du jour existe déjà : on ne l'écrase pas."
+          else
+            carburants --dossier donnees instantane
+          fi
 
       - name: Collectes hebdomadaires (le lundi, à la demande, ou quand le code change)
         id: hebdo
@@ -63,9 +69,16 @@ jobs:
       # Overpass (OpenStreetMap) est un service gratuit parfois saturé : un échec ici ne doit pas
       # empêcher de publier les prix et les bornes du jour.
       - name: Enseignes des stations (OpenStreetMap)
+        id: enseignes
         if: steps.hebdo.outputs.lancer == 'true'
         continue-on-error: true
         run: carburants --dossier donnees enseignes
+
+      - name: Signaler l'échec des enseignes
+        if: steps.enseignes.outcome == 'failure'
+        run: |
+          echo "::warning title=Enseignes::La récupération des enseignes OpenStreetMap a échoué ; les prix et les bornes sont publiés quand même."
+          echo "⚠️ Enseignes OpenStreetMap non mises à jour (Overpass indisponible ?). Voir le journal de l'étape." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publier sur la branche data
         working-directory: donnees

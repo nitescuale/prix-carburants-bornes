@@ -39,7 +39,7 @@ def test_url_fichier_consolide_prend_le_plus_recent(monkeypatch):
 
 
 def test_lire_csv_garde_le_texte():
-    contenu = "id_pdc_itinerance,puissance_nominale,code_insee_commune\nFRS01E001,22,01004\n".encode()
+    contenu = b"id_pdc_itinerance,puissance_nominale,code_insee_commune\nFRS01E001,22,01004\n"
     bornes = irve.lire_csv(contenu)
     assert bornes.row(0, named=True) == {
         "id_pdc_itinerance": "FRS01E001",

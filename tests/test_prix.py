@@ -37,10 +37,66 @@ def test_prix_euros_et_milliemes(tables):
     assert ancien["prix"] == pytest.approx(1.259)
 
 
-def test_doublons_supprimes_et_ruptures_ignorees(tables):
-    _, tarifs = tables
+def test_doublons_supprimes_et_ruptures_a_part(tables):
+    stations, tarifs = tables
     assert len(tarifs) == 3
     assert "SP95" not in tarifs["carburant"].to_list()
+    assert stations["ruptures"].to_list() == [["SP95"], []]
+    assert stations["fermeture_type"].to_list() == [None, None]
+
+
+def _un_pdv(contenu: str, latitude: str = "4620114", longitude: str = "519791") -> bytes:
+    return (
+        f'<pdv_liste><pdv id="1" latitude="{latitude}" longitude="{longitude}" cp="01000" pop="R">'
+        f"{contenu}</pdv></pdv_liste>"
+    ).encode()
+
+
+def test_fermeture_et_rupture_terminee():
+    xml = _un_pdv(
+        '<fermeture type="T" debut="2025-01-01 00:00:00" fin="2025-02-01 00:00:00"/>'
+        '<rupture id="1" nom="Gazole" debut="2024-12-01 10:00:00" fin="2024-12-02 10:00:00"/>'
+    )
+    stations, _ = prix.parser_xml(xml)
+    station = stations.row(0, named=True)
+    assert (station["fermeture_type"], station["fermeture_debut"], station["fermeture_fin"]) == (
+        "T",
+        "2025-01-01 00:00:00",
+        "2025-02-01 00:00:00",
+    )
+    assert station["ruptures"] == []
+
+
+@pytest.mark.parametrize(
+    ("valeur", "attendu"),
+    [("1.759", 1.759), ("1759", 1.759), ("12.5", None), ("100", None), ("9.999", None), ("0.05", None)],
+)
+def test_conversion_et_prix_aberrants(valeur, attendu, capsys):
+    _, tarifs = prix.parser_xml(_un_pdv(f'<prix nom="Gazole" id="1" maj="2025-01-02 09:25:22" valeur="{valeur}"/>'))
+    if attendu is None:
+        assert tarifs.height == 0
+        assert "écartés" in capsys.readouterr().err
+    else:
+        assert tarifs["prix"].to_list() == [pytest.approx(attendu)]
+
+
+def test_doublon_de_cle_garde_le_dernier_prix():
+    xml = _un_pdv(
+        '<prix nom="E10" id="5" maj="2016-03-09 06:03:00" valeur="1232"/>'
+        '<prix nom="E10" id="5" maj="2016-03-09 06:03:00" valeur="1229"/>'
+    )
+    _, tarifs = prix.parser_xml(xml)
+    assert tarifs["prix"].to_list() == [pytest.approx(1.229)]
+
+
+@pytest.mark.parametrize(
+    ("brut", "attendu"),
+    [("4620114", 46.20114), ("48.85", 48.85), ("0", None), ("", None), ("abc", None), ("-2155000", -21.55)],
+)
+def test_coordonnees(brut, attendu):
+    stations, _ = prix.parser_xml(_un_pdv("", latitude=brut))
+    latitude = stations["latitude"][0]
+    assert latitude == (pytest.approx(attendu) if attendu is not None else None)
 
 
 def test_format_iso_t(tables):
@@ -119,9 +175,9 @@ def test_formats_de_date(brut, attendu):
 
 def test_dates_illisibles_signalees(capsys):
     xml = (
-        '<pdv_liste><pdv id="1" latitude="1" longitude="1" cp="01000" pop="R">'
-        '<prix nom="Gazole" id="1" maj="01/03/2008" valeur="1259"/></pdv></pdv_liste>'
-    ).encode()
+        b'<pdv_liste><pdv id="1" latitude="1" longitude="1" cp="01000" pop="R">'
+        b'<prix nom="Gazole" id="1" maj="01/03/2008" valeur="1259"/></pdv></pdv_liste>'
+    )
     _, tarifs = prix.parser_xml(xml)
     assert tarifs["maj"].to_list() == [None]
     assert "01/03/2008" in capsys.readouterr().err

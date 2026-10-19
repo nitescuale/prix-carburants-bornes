@@ -17,6 +17,13 @@ from carburants import enseignes
         ("Esso Express", None, "Esso"),
         (None, "Station Avia du Lac", "Avia"),
         (None, "Garage Dupont", None),
+        (None, "Garage du Carrefour", None),
+        (None, "Relais du Casino", None),
+        (None, "Géant des Pneus", None),
+        ("Élan", None, "TotalEnergies"),
+        ("Système U", None, "Système U"),
+        ("Station U", None, "Système U"),
+        (None, "Intermarché Saint-Jean", "Intermarché"),
         ("Petrovex", None, "Petrovex"),
         (None, None, None),
     ],
@@ -54,6 +61,42 @@ def test_apparier_respecte_le_rayon():
     assert loin["enseigne"] is None
     assert loin["osm_id"] is None
     assert loin["grande_surface"] is False
+    assert leclerc["osm_partage"] is False
+
+
+def test_apparier_signale_une_station_osm_partagee():
+    stations = pl.DataFrame({"id": [1, 2], "latitude": [48.0, 48.0001], "longitude": [2.0, 2.0]})
+    osm = enseignes.elements_vers_table([{"type": "node", "id": 9, "lat": 48.0, "lon": 2.0, "tags": {"brand": "BP"}}])
+    resultat = enseignes.apparier(stations, osm)
+    assert resultat["osm_partage"].to_list() == [True, True]
+
+
+def test_apparier_refuse_une_table_osm_vide():
+    stations = pl.DataFrame({"id": [1], "latitude": [48.0], "longitude": [2.0]})
+    with pytest.raises(ValueError, match="Aucune station"):
+        enseignes.apparier(stations, enseignes.elements_vers_table([]))
+
+
+def test_requete_overpass_rejette_une_reponse_partielle(monkeypatch):
+    reponses = [
+        {"remark": "runtime error: Query timed out in \"query\" at line 3 after 300 seconds.", "elements": [{"id": 1}]},
+        {"elements": [{"type": "node", "id": 1}]},
+    ]
+
+    class Reponse:
+        def __init__(self, contenu):
+            self.contenu = contenu
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.contenu
+
+    monkeypatch.setattr(enseignes.requests, "post", lambda url, data, headers, timeout: Reponse(reponses.pop(0)))
+    monkeypatch.setattr(enseignes.time, "sleep", lambda s: None)
+    assert enseignes._requete_overpass("[out:json];") == [{"type": "node", "id": 1}]
+    assert reponses == []
 
 
 def test_telecharger_osm_parcourt_les_tuiles_et_dedoublonne(monkeypatch):
