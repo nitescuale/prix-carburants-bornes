@@ -35,7 +35,8 @@
   champs("carburant").addEventListener("change", () => {
     champs("conso-thermique").value = CONSO_DEFAUT[champs("carburant").value] ?? 6.5;
   });
-  if (resume.electricite.domicile) champs("prix-domicile").value = resume.electricite.domicile.prix;
+  // Arrondi au millième, le pas du champ : sinon le navigateur refuse la valeur pré-remplie
+  if (resume.electricite.domicile) champs("prix-domicile").value = resume.electricite.domicile.prix.toFixed(3);
 
   // Communes choisies ; « Paris (75) » et « Lyon (69) » sont proposées d'emblée
   const choix = { depart: null, arrivee: null };
