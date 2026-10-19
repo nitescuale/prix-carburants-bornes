@@ -1,7 +1,8 @@
 name: Collecte quotidienne
 
 # Chaque matin : photo des prix de toutes les stations, cours du Brent et du dollar ; chaque lundi : bornes IRVE,
-# enseignes des stations (OpenStreetMap) et bulletin pétrolier européen.
+# enseignes des stations (OpenStreetMap), bulletin pétrolier européen et données territoriales (communes, voitures
+# par type de recharge, prix de l'électricité).
 # Elle tourne aussi quand le code de collecte change sur main, pour valider le changement sur les vraies données
 # (sans écraser la photo des prix déjà prise ce jour-là).
 # Les fichiers Parquet sont ajoutés à la branche `data`, séparée du code.
@@ -87,14 +88,21 @@ jobs:
         continue-on-error: true
         run: carburants --dossier donnees bulletin
 
+      - name: Communes, voitures par type de recharge, prix de l'électricité
+        id: territoires
+        if: steps.hebdo.outputs.lancer == 'true'
+        continue-on-error: true
+        run: carburants --dossier donnees territoires
+
       - name: Signaler les sources en échec
-        if: steps.enseignes.outcome == 'failure' || steps.marches.outcome == 'failure' || steps.bulletin.outcome == 'failure'
+        if: steps.enseignes.outcome == 'failure' || steps.marches.outcome == 'failure' || steps.bulletin.outcome == 'failure' || steps.territoires.outcome == 'failure'
         env:
           ENSEIGNES: ${{ steps.enseignes.outcome }}
           MARCHES: ${{ steps.marches.outcome }}
           BULLETIN: ${{ steps.bulletin.outcome }}
+          TERRITOIRES: ${{ steps.territoires.outcome }}
         run: |
-          for source in "Enseignes OpenStreetMap:$ENSEIGNES" "Brent et euro/dollar (FRED):$MARCHES" "Bulletin pétrolier européen:$BULLETIN"; do
+          for source in "Enseignes OpenStreetMap:$ENSEIGNES" "Brent et euro/dollar (FRED):$MARCHES" "Bulletin pétrolier européen:$BULLETIN" "Données territoriales:$TERRITOIRES"; do
             if [ "${source##*:}" = "failure" ]; then
               echo "::warning title=Collecte::${source%%:*} non mis à jour ; le reste est publié quand même."
               echo "⚠️ ${source%%:*} non mis à jour. Voir le journal de l'étape." >> "$GITHUB_STEP_SUMMARY"

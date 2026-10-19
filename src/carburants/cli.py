@@ -1,5 +1,5 @@
 """Ligne de commande : `carburants instantane`, `carburants annee 2024`, `carburants irve`, `carburants enseignes`,
-`carburants marches`, `carburants bulletin`."""
+`carburants marches`, `carburants bulletin`, `carburants territoires`."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import polars as pl
 
-from carburants import enseignes, irve, marches, prix
+from carburants import enseignes, irve, marches, prix, territoires
 
 
 def collecter_instantane(dossier: Path) -> None:
@@ -73,6 +73,23 @@ def collecter_bulletin(dossier: Path) -> None:
     print(f"Bulletin pétrolier : {len(contenu) / 1e6:.1f} Mo depuis {url} -> {cible}")
 
 
+def collecter_territoires(dossier: Path) -> None:
+    cible = dossier / "territoires"
+    (cible / "vehicules").mkdir(parents=True, exist_ok=True)
+    communes = territoires.telecharger_communes()
+    communes.write_parquet(cible / "communes.parquet")
+    print(f"{communes.height} communes et arrondissements -> {cible}")
+    electricite = territoires.telecharger_prix_electricite()
+    electricite.write_parquet(cible / "prix_electricite.parquet")
+    dernier = electricite.row(-1, named=True)
+    print(f"Électricité des ménages : {electricite.height} semestres, {dernier['semestre']} à {dernier['prix_eur_kwh']:.4f} €/kWh")
+    manifeste, fichiers = territoires.telecharger_vehicules()
+    for nom, contenu in fichiers:
+        (cible / "vehicules" / nom).write_bytes(contenu)
+    territoires.ecrire_manifeste(cible / "vehicules" / "source.json", manifeste)
+    print(f"Voitures par type de recharge : {len(fichiers)} fichiers ({manifeste['jeu']}) -> {cible / 'vehicules'}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="carburants")
     parser.add_argument("--dossier", type=Path, default=Path("data"), help="dossier de sortie (défaut : data)")
@@ -84,6 +101,7 @@ def main() -> None:
     sous.add_parser("enseignes", help="enseigne des stations, via OpenStreetMap")
     sous.add_parser("marches", help="cours du Brent et taux euro/dollar (FRED)")
     sous.add_parser("bulletin", help="historique du bulletin pétrolier européen (prix avec et sans taxes)")
+    sous.add_parser("territoires", help="communes, voitures par type de recharge, prix de l'électricité")
     args = parser.parse_args()
 
     if args.commande == "instantane":
@@ -96,6 +114,8 @@ def main() -> None:
         collecter_marches(args.dossier)
     elif args.commande == "bulletin":
         collecter_bulletin(args.dossier)
+    elif args.commande == "territoires":
+        collecter_territoires(args.dossier)
     else:
         collecter_enseignes(args.dossier)
 
