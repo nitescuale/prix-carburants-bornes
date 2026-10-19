@@ -60,8 +60,11 @@ jobs:
         if: steps.hebdo.outputs.lancer == 'true'
         run: carburants --dossier donnees irve
 
+      # Overpass (OpenStreetMap) est un service gratuit parfois saturé : un échec ici ne doit pas
+      # empêcher de publier les prix et les bornes du jour.
       - name: Enseignes des stations (OpenStreetMap)
         if: steps.hebdo.outputs.lancer == 'true'
+        continue-on-error: true
         run: carburants --dossier donnees enseignes
 
       - name: Publier sur la branche data
