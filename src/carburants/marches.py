@@ -71,3 +71,50 @@ def telecharger_bulletin() -> tuple[str, bytes]:
     fichier = requests.get(url, headers=ENTETES, timeout=TIMEOUT)
     fichier.raise_for_status()
     return url, fichier.content
+
+
+FEUILLES_BULLETIN = {"ht": "Prices wo taxes", "ttc": "Prices with taxes"}
+PRODUITS_BULLETIN = {"euro95": "sp95", "diesel": "gazole"}
+
+
+def lire_bulletin(contenu: bytes, pays: str = "FR") -> pl.DataFrame:
+    """Prix moyens hebdomadaires d'un pays dans l'historique du bulletin pétrolier, en euros par litre.
+
+    Chaque feuille a une ligne de codes (« FR_price_wo_tax_diesel »), une ligne de libellés et une ligne d'unités
+    (euros pour 1000 litres), puis une ligne par lundi, de la plus récente à la plus ancienne.
+    """
+    import openpyxl
+
+    classeur = openpyxl.load_workbook(io.BytesIO(contenu), read_only=True, data_only=True)
+    colonnes: dict[str, list] = {}
+    dates = None
+    for suffixe, feuille in FEUILLES_BULLETIN.items():
+        lignes = list(classeur[feuille].iter_rows(values_only=True))
+        codes = re.compile(rf"^{pays}_price_w(?:o|ith)_tax_({'|'.join(PRODUITS_BULLETIN)})$")
+        entetes = next((ligne for ligne in lignes[:10] if any(codes.match(str(c or "")) for c in ligne)), None)
+        if entetes is None:
+            raise ValueError(f"Colonnes du pays {pays} introuvables dans la feuille « {feuille} »")
+        indices = {PRODUITS_BULLETIN[m.group(1)]: i for i, c in enumerate(entetes) if (m := codes.match(str(c or "")))}
+        donnees = [ligne for ligne in lignes if hasattr(ligne[0], "year")]
+        jours = [ligne[0].date() if hasattr(ligne[0], "date") else ligne[0] for ligne in donnees]
+        if dates is None:
+            dates = jours
+        elif jours != dates:
+            raise ValueError("Les feuilles avec et sans taxes n'ont pas les mêmes semaines")
+        for produit, i in indices.items():
+            colonnes[f"{produit}_{suffixe}"] = [_euros_par_litre(ligne[i]) for ligne in donnees]
+    classeur.close()
+    ordre = [f"{p}_{s}" for p in PRODUITS_BULLETIN.values() for s in FEUILLES_BULLETIN if f"{p}_{s}" in colonnes]
+    return (
+        pl.DataFrame({"date": dates, **{c: colonnes[c] for c in ordre}}, schema_overrides={c: pl.Float64 for c in ordre})
+        .with_columns(pl.col("date").cast(pl.Date))
+        .unique("date", keep="first")
+        .sort("date")
+    )
+
+
+def _euros_par_litre(valeur) -> float | None:
+    # Les cellules vides ou textuelles (« n.a. ») sont des semaines sans relevé
+    if isinstance(valeur, (int, float)) and valeur > 0:
+        return valeur / 1000
+    return None
