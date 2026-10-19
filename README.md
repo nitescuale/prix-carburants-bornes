@@ -28,3 +28,17 @@ carburants irve           # bornes de recharge -> data/irve/bornes_AAAA-MM-JJ.pa
 Chaque collecte produit des fichiers Parquet : `stations.parquet` (une ligne par station) et `prix.parquet` (une ligne par prix publié, avec sa date de mise à jour).
 
 Le workflow [Collecte quotidienne](.github/workflows/collecte.yml) lance la photo des prix chaque matin et les bornes chaque lundi, puis publie les fichiers sur la branche `data`.
+
+## Analyses
+
+```bash
+pip install -e ".[analyse]"
+git fetch origin data && git worktree add data origin/data   # les données collectées, dans data/
+jupyter lab notebooks/
+```
+
+| Notebook | Contenu |
+|---|---|
+| [01_exploration](notebooks/01_exploration.ipynb) | Prix par carburant, autoroute contre route, géographie, concurrence locale, bornes de recharge, qualité des données |
+
+Les graphiques exportés pour le site sont dans [`rapports/figures`](rapports/figures).
