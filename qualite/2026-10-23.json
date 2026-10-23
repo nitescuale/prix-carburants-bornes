@@ -1,0 +1,60 @@
+{
+ "date": "2026-10-23",
+ "statut": "ok",
+ "controles": [
+  {
+   "nom": "Date de la photo des prix",
+   "valeur": "2026-10-23",
+   "attendu": "celle du jour",
+   "statut": "ok"
+  },
+  {
+   "nom": "Stations dans la photo",
+   "valeur": 9816,
+   "attendu": "au moins 9 000",
+   "statut": "ok"
+  },
+  {
+   "nom": "Stations avec un prix du gazole récent (%)",
+   "valeur": 71.6,
+   "attendu": "au moins 65 %",
+   "statut": "ok"
+  },
+  {
+   "nom": "Prix médian du gazole (€/L)",
+   "valeur": 2.369,
+   "attendu": "entre 1,00 et 3,50 €",
+   "statut": "ok"
+  },
+  {
+   "nom": "Variation du prix médian depuis la photo précédente (%)",
+   "valeur": 0.0,
+   "attendu": "moins de 5 % en valeur absolue",
+   "statut": "ok"
+  },
+  {
+   "nom": "Âge du fichier des bornes (jours)",
+   "valeur": 4,
+   "attendu": "au plus 14 jours",
+   "statut": "ok"
+  },
+  {
+   "nom": "Lignes du fichier des bornes",
+   "valeur": 157460,
+   "attendu": "au moins 100 000",
+   "statut": "ok"
+  },
+  {
+   "nom": "Retard du cours du Brent (jours)",
+   "valeur": 7,
+   "attendu": "au plus 14 jours (FRED publie avec retard)",
+   "statut": "ok"
+  },
+  {
+   "nom": "Stations avec une enseigne (%)",
+   "valeur": 80.3,
+   "attendu": "au moins 70 %",
+   "statut": "ok"
+  }
+ ]
+}
