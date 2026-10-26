@@ -2,7 +2,7 @@
  "jeu": "Voitures particulières immatriculées par commune et par type de recharge",
  "page": "https://www.data.gouv.fr/datasets/voitures-particulieres-immatriculees-par-commune-et-par-type-de-recharge-jeu-de-donnees-aaadata",
  "producteur": "Agence ORE",
- "collecte": "2026-10-19",
+ "collecte": "2026-10-26",
  "ressources": [
   {
    "fichier": "Fichier_csv.csv",
