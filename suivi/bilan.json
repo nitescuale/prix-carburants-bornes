@@ -1,9 +1,9 @@
 {
- "semaines_jugees": 44,
- "semaines_en_direct": 4,
- "erreur_recente": 4.92,
+ "semaines_jugees": 45,
+ "semaines_en_direct": 5,
+ "erreur_recente": 4.83,
  "erreur_persistance_recente": 4.83,
- "erreur_directe": 5.94,
- "erreur_persistance_directe": 6.03,
+ "erreur_directe": 5.15,
+ "erreur_persistance_directe": 5.42,
  "derive": false
 }
